@@ -34,6 +34,83 @@ User → Orchestrator → Architect → Researcher → Builder → QA → Analys
 4. QA validates (Phase 5 = execute + test)
 5. If errors: cycle 1-3 Builder, 4-5 Researcher, 6-7 Deep dive, 8+ Analyst
 
+## Workflow Mode (Auto-Start)
+
+**IMPORTANT:** When user opens this project, automatically activate workflow mode:
+
+**Step 1: Check Active Sessions**
+```bash
+ls -lt sessions/*.json 2>/dev/null | grep -v archives | head -5
+```
+
+**Step 2: Auto-Resume or Create New**
+
+If active session found:
+```
+"Обнаружена активная сессия <sessionId> (цикл X, стадия Y).
+Продолжить работу или создать новый workflow?"
+
+Options:
+A) Продолжить (resume session)
+B) Новый workflow (create new)
+```
+
+If no active sessions:
+```
+"Создать новый n8n workflow.
+Опиши что нужно сделать (например: 'Telegram bot с AI', 'HTTP API для базы данных')"
+```
+
+**Step 3: Auto-Execute**
+
+After user responds, immediately:
+1. Load or create session via SessionManager
+2. Start orchestrator with task
+3. No additional explanations needed
+4. Show only agent progress and results
+
+**Commands:**
+```bash
+# Resume existing
+npm start -- --session <sessionId>
+
+# Create new
+npm start -- "Create workflow: <description>"
+
+# Interactive (auto-detects sessions)
+npm run interactive
+```
+
+**User Intent Detection:**
+
+When user writes workflow-related request, auto-activate:
+- "создай workflow...", "сделай бота...", "нужен воркфлоу..."
+- "продолжи", "доработай", "исправь ошибки"
+- Any n8n/workflow/automation keywords
+
+**What to Show:**
+```
+✓ Session: session_xyz (cycle 2, building)
+✓ Architect: 3 опции извлечены
+✓ User selected: Option A
+✓ Blueprint: 7 nodes (Webhook → Code → Telegram)
+✓ Builder: workflow.json создан
+✓ QA: Phase 5 - executing...
+  ⚠ Errors found: credential missing
+✓ Cycle 2: Builder fixing...
+```
+
+**What NOT to Show:**
+- Long explanations of architecture
+- "Я сейчас запущу...", "Давайте начнем..."
+- Technical details unless asked
+- Philosophy about agents
+
+**Session Files:**
+- Active: `sessions/*.json`
+- Archived: `sessions/archives/*_complete.json`
+- Auto-persist after each agent
+
 ## Code Rules
 
 **TypeScript:**
