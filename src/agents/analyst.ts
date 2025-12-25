@@ -309,7 +309,7 @@ ${report.root_cause}
 ## Timeline
 `;
 
-    for (const entry of report.timeline) {
+    for (const entry of report.timeline || []) {
       output += `- **${entry.agent}**: ${entry.action} → ${entry.result}\n`;
     }
 
@@ -317,21 +317,21 @@ ${report.root_cause}
 ## Agent Performance
 `;
 
-    for (const [agent, grade] of Object.entries(report.agent_grades)) {
+    for (const [agent, grade] of Object.entries(report.agent_grades || {})) {
       const bar = '█'.repeat(grade) + '░'.repeat(10 - grade);
       output += `- ${agent}: ${bar} (${grade}/10)\n`;
     }
 
     output += `
 ## Token Usage
-- Total: ${report.token_usage.total.toLocaleString()} tokens
+- Total: ${(report.token_usage?.total || 0).toLocaleString()} tokens
 `;
 
     output += `
 ## Recommendations
 `;
 
-    for (const learning of report.proposed_learnings) {
+    for (const learning of report.proposed_learnings || []) {
       output += `- **${learning.title}** (${learning.severity})\n`;
     }
 

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.1] - 2025-12-25
+
+### 🐛 Bugfixes
+
+- Fixed `TypeError: report.proposed_learnings is not iterable` in orchestrator
+- Fixed `TypeError: report.timeline is not iterable` in analyst
+- Added null checks: `|| []` and `|| {}`
+
+---
+
 ## [1.0.0] - 2025-12-25
 
 ### ✨ Initial Release

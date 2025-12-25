@@ -460,12 +460,12 @@ export class Orchestrator {
     );
 
     // Write learnings
-    for (const learning of report.proposed_learnings) {
+    for (const learning of report.proposed_learnings || []) {
       await analystAgent.writeLearning(learning);
     }
 
     // Update context
-    for (const update of report.context_updates) {
+    for (const update of report.context_updates || []) {
       await analystAgent.updateContext(update);
     }
 
