@@ -1,0 +1,110 @@
+{
+  "agents": {
+    "architect": {
+      "model": "claude-sonnet-4-20250514",
+      "maxTokens": 4096,
+      "skills": [
+        "n8n-workflow-patterns",
+        "n8n-mcp-tools-expert"
+      ],
+      "mcpTools": [],
+      "promptFile": "architect.md",
+      "indexFile": "architect_patterns.md"
+    },
+    "researcher": {
+      "model": "claude-sonnet-4-20250514",
+      "maxTokens": 8192,
+      "skills": [
+        "n8n-mcp-tools-expert",
+        "n8n-node-configuration"
+      ],
+      "mcpTools": [
+        "mcp__n8n-mcp__search_nodes",
+        "mcp__n8n-mcp__get_node",
+        "mcp__n8n-mcp__get_template",
+        "mcp__n8n-mcp__search_templates",
+        "mcp__n8n-mcp__n8n_list_workflows",
+        "mcp__n8n-mcp__n8n_get_workflow",
+        "mcp__n8n-mcp__n8n_executions"
+      ],
+      "promptFile": "researcher.md",
+      "indexFile": "researcher_nodes.md"
+    },
+    "builder": {
+      "model": "claude-opus-4-5-20251101",
+      "maxTokens": 16384,
+      "skills": [
+        "n8n-node-configuration",
+        "n8n-expression-syntax",
+        "n8n-code-javascript",
+        "n8n-code-python"
+      ],
+      "mcpTools": [
+        "mcp__n8n-mcp__n8n_create_workflow",
+        "mcp__n8n-mcp__n8n_get_workflow",
+        "mcp__n8n-mcp__n8n_update_full_workflow",
+        "mcp__n8n-mcp__n8n_update_partial_workflow",
+        "mcp__n8n-mcp__n8n_delete_workflow",
+        "mcp__n8n-mcp__n8n_validate_workflow",
+        "mcp__n8n-mcp__n8n_autofix_workflow",
+        "mcp__n8n-mcp__validate_node",
+        "mcp__n8n-mcp__get_node",
+        "mcp__n8n-mcp__search_nodes"
+      ],
+      "promptFile": "builder.md",
+      "indexFile": "builder_gotchas.md",
+      "protocols": [
+        "L-075",
+        "L-079",
+        "surgical-edits",
+        "wipe-protection"
+      ]
+    },
+    "qa": {
+      "model": "claude-sonnet-4-20250514",
+      "maxTokens": 8192,
+      "skills": [
+        "n8n-validation-expert",
+        "n8n-mcp-tools-expert"
+      ],
+      "mcpTools": [
+        "mcp__n8n-mcp__n8n_get_workflow",
+        "mcp__n8n-mcp__n8n_list_workflows",
+        "mcp__n8n-mcp__n8n_validate_workflow",
+        "mcp__n8n-mcp__n8n_test_workflow",
+        "mcp__n8n-mcp__n8n_executions",
+        "mcp__n8n-mcp__n8n_update_partial_workflow",
+        "mcp__n8n-mcp__validate_node"
+      ],
+      "promptFile": "qa.md",
+      "indexFile": "qa_validation.md",
+      "protocols": [
+        "L-072",
+        "L-053",
+        "L-054",
+        "phase-5-mandatory"
+      ]
+    },
+    "analyst": {
+      "model": "claude-sonnet-4-20250514",
+      "maxTokens": 8192,
+      "skills": [
+        "n8n-workflow-patterns",
+        "n8n-validation-expert"
+      ],
+      "mcpTools": [
+        "mcp__n8n-mcp__n8n_get_workflow",
+        "mcp__n8n-mcp__n8n_list_workflows",
+        "mcp__n8n-mcp__n8n_executions",
+        "mcp__n8n-mcp__n8n_workflow_versions",
+        "mcp__n8n-mcp__n8n_validate_workflow"
+      ],
+      "promptFile": "analyst.md",
+      "indexFile": "analyst_learnings.md",
+      "writePermissions": [
+        "docs/learning/LEARNINGS.md",
+        "docs/SYSTEM-CONTEXT.md"
+      ]
+    }
+  }
+}

@@ -1,0 +1,119 @@
+{
+  "gates": {
+    "GATE_1": {
+      "name": "Progressive Escalation",
+      "description": "Blocks Builder if cycle >= 4 without Researcher, blocks all if cycle >= 8",
+      "enforcement": "orchestrator",
+      "rules": [
+        {
+          "condition": "cycle >= 4 && !researcherCalled",
+          "action": "BLOCK_BUILDER",
+          "message": "Cycle 4+ requires Researcher alternative approach first"
+        },
+        {
+          "condition": "cycle >= 8",
+          "action": "BLOCK_ALL",
+          "message": "Maximum cycles exceeded, triggering L4 escalation"
+        }
+      ]
+    },
+    "GATE_2": {
+      "name": "Execution Analysis Requirement",
+      "description": "Blocks Builder without execution_analysis.completed",
+      "enforcement": "pre-build",
+      "rules": [
+        {
+          "condition": "!execution_analysis.completed && hasFailedExecution",
+          "action": "BLOCK_BUILDER",
+          "message": "L-067 two-step execution analysis required before fix"
+        }
+      ],
+      "protocol": "L-067"
+    },
+    "GATE_3": {
+      "name": "Phase 5 Real Testing",
+      "description": "Blocks QA PASS without phase_5_executed: true",
+      "enforcement": "post-qa",
+      "rules": [
+        {
+          "condition": "qa_status === 'PASS' && !phase_5_executed",
+          "action": "REJECT_PASS",
+          "message": "QA PASS requires Phase 5 real workflow testing"
+        }
+      ],
+      "mandatory": true
+    },
+    "GATE_4": {
+      "name": "Fix Attempts History",
+      "description": "Injects previous attempts into Builder prompt",
+      "enforcement": "automatic",
+      "injection": {
+        "target": "builder_prompt",
+        "section": "ALREADY_TRIED",
+        "source": "session.getFixAttempts()"
+      }
+    },
+    "GATE_5": {
+      "name": "MCP Call Verification",
+      "description": "Blocks success without mcp_calls array",
+      "enforcement": "post-builder",
+      "rules": [
+        {
+          "condition": "!mcp_calls || mcp_calls.length === 0",
+          "action": "REJECT_SUCCESS",
+          "message": "Builder must log MCP mutation calls"
+        },
+        {
+          "condition": "!mcp_calls.some(c => c.type === 'mutation')",
+          "action": "REJECT_SUCCESS",
+          "message": "At least one MCP mutation call required"
+        }
+      ],
+      "protocol": "L-071"
+    },
+    "GATE_6": {
+      "name": "Hypothesis Validation",
+      "description": "Blocks Researcher proposal without validation",
+      "enforcement": "pre-decision",
+      "rules": [
+        {
+          "condition": "!hypothesis_validated",
+          "action": "BLOCK_DECISION",
+          "message": "Researcher must validate hypothesis before proposal"
+        }
+      ]
+    }
+  },
+  "escalationLevels": {
+    "L1": {
+      "name": "Quick Fix",
+      "trigger": "cycle <= 3",
+      "action": "Builder direct fix"
+    },
+    "L2": {
+      "name": "Targeted Debug",
+      "trigger": "cycle 4-5",
+      "action": "Researcher execution analysis → Builder"
+    },
+    "L3": {
+      "name": "Full Investigation",
+      "trigger": "cycle 6-7",
+      "action": "Researcher deep dive → Builder"
+    },
+    "L4": {
+      "name": "User Escalation",
+      "trigger": "cycle >= 8 or stage=blocked",
+      "action": "Analyst post-mortem → Report to user"
+    }
+  },
+  "qaLoop": {
+    "maxCycles": 7,
+    "progressiveEscalation": true,
+    "cycleActions": {
+      "1-3": "Builder direct fix",
+      "4-5": "Researcher alternative approach",
+      "6-7": "Researcher deep dive",
+      "8+": "BLOCKED → Analyst post-mortem"
+    }
+  }
+}
