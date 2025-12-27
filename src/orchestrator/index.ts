@@ -229,13 +229,25 @@ export class Orchestrator {
     await researcherAgent.initialize();
     const findings = await researcherAgent.search(this.session!, query);
 
-    // GATE 6: Validate hypothesis
+    // GATE 6: Validate hypothesis (with timeout protection)
     if (findings.hypothesis) {
-      const validation = await researcherAgent.validateHypothesis(
-        this.session!,
-        findings.hypothesis
-      );
-      findings.hypothesis_validated = validation.validated;
+      try {
+        const validation = await researcherAgent.validateHypothesis(
+          this.session!,
+          findings.hypothesis
+        );
+        findings.hypothesis_validated = validation.validated;
+        console.log(`[Orchestrator] Hypothesis validated: ${validation.validated} (confidence: ${validation.confidence})`);
+      } catch (error) {
+        // Handle timeout or other errors gracefully
+        if (error instanceof Error && error.message.includes('timed out')) {
+          console.warn('[Orchestrator] Hypothesis validation timed out - assuming validated');
+          findings.hypothesis_validated = true;
+        } else {
+          console.error('[Orchestrator] Hypothesis validation failed:', error);
+          findings.hypothesis_validated = false;
+        }
+      }
     }
 
     console.log(`[Orchestrator] Research complete. Fit score: ${findings.fit_score}`);

@@ -161,10 +161,32 @@ ${skills}
   }
 
   /**
-   * Execute agent task using Claude Agent SDK
+   * Execute agent task using Claude Agent SDK with timeout
    * Uses your Claude subscription (no API costs!)
    */
   async invoke(
+    session: SessionContext,
+    task: string,
+    context?: Record<string, unknown>
+  ): Promise<AgentResult> {
+    // Wrap in timeout to prevent Agent SDK from hanging
+    const TIMEOUT_MS = 90000; // 90 seconds
+
+    const timeoutPromise = new Promise<AgentResult>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error(`Agent ${this.role} timed out after ${TIMEOUT_MS}ms`));
+      }, TIMEOUT_MS);
+    });
+
+    const invokePromise = this.invokeWithoutTimeout(session, task, context);
+
+    return Promise.race([invokePromise, timeoutPromise]);
+  }
+
+  /**
+   * Internal invoke implementation without timeout
+   */
+  private async invokeWithoutTimeout(
     session: SessionContext,
     task: string,
     context?: Record<string, unknown>

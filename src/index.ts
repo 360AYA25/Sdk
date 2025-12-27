@@ -14,14 +14,11 @@ import { orchestrator } from './orchestrator/index.js';
 
 // Validate environment
 function validateEnv(): void {
-  const required = ['ANTHROPIC_API_KEY'];
-  const missing = required.filter(key => !process.env[key]);
-
-  if (missing.length > 0) {
-    console.error('Missing required environment variables:');
-    missing.forEach(key => console.error(`  - ${key}`));
-    console.error('\nCopy .env.example to .env and fill in the values.');
-    process.exit(1);
+  // ANTHROPIC_API_KEY is optional - Agent SDK uses Claude Code subscription if not provided
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.log('[SDK] Using Claude Code built-in authentication');
+  } else {
+    console.log('[SDK] Using ANTHROPIC_API_KEY from .env');
   }
 }
 
