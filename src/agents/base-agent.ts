@@ -170,7 +170,17 @@ ${skills}
     context?: Record<string, unknown>
   ): Promise<AgentResult> {
     // Wrap in timeout to prevent Agent SDK from hanging
-    const TIMEOUT_MS = 90000; // 90 seconds
+    // Dynamic timeout based on agent role and workflow complexity
+    const nodeCount = session.requirements?.nodeCount || 0;
+    const baseTimeout = 90000; // 90 seconds
+    const complexWorkflow = nodeCount >= 10;
+
+    let TIMEOUT_MS = baseTimeout;
+    if (this.role === 'researcher' && complexWorkflow) {
+      TIMEOUT_MS = 180000; // 3 minutes for complex research
+    } else if (this.role === 'builder' && complexWorkflow) {
+      TIMEOUT_MS = 180000; // 3 minutes for complex builds
+    }
 
     const timeoutPromise = new Promise<AgentResult>((_, reject) => {
       setTimeout(() => {

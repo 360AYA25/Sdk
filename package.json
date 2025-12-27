@@ -1,6 +1,6 @@
 {
   "name": "clouden8n-sdk",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "ClaudeN8N 5-Agent System migrated to Claude Agent SDK",
   "type": "module",
   "main": "dist/index.js",

@@ -46,3 +46,15 @@ Before invoking Builder:
 - Results in legitimate GATE 3 violation → BLOCKED status
 - Resolution requires user intervention or design change
 - This is correct system behavior, not a bug
+
+## Known Issues
+
+**Hardcoded Validation Anti-Pattern**: Code nodes with hardcoded field validation (like checking for specific field names) frequently fail when webhook payloads have different structures. Always examine actual payload structure before implementing validation logic. This caused workflow SgHwhcgcr3bOFIdI to fail with 12+ failed executions.
+
+## Testing Requirements
+
+**Phase 5 Realistic Data Requirement**: All webhook-triggered workflows must be tested with payloads that match the actual expected input structure, not generic test data. Validation logic must be tested against real-world data schemas.
+
+## Session Management
+
+Pre-flight Failures (Cycle 0 Blocks): When sessions block at cycle 0, investigate: user requirement clarity, scope determination capability, system health, and domain appropriateness. These failures waste fewer tokens but indicate process issues at the requirement gathering stage.

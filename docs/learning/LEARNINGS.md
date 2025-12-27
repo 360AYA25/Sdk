@@ -8300,3 +8300,69 @@ Implementation: validateBlueprint() now checks session.requirements.nodeCount an
 **Related**: L-100 (Phase 5 mandatory for Code nodes), GATE 3 (testing enforcement)
 
 ---
+
+### L-114: Validate Input Schema Before Hardcoding
+
+**Category:** validation
+**Severity:** critical
+**Added:** 2025-12-27
+
+**Problem:** Code node validation logic hardcoded expected field names without understanding actual webhook payload structure.
+
+**Symptoms:** Immediate execution failure with 'Missing required fields' despite valid webhook data.
+
+**Root Cause:** Builder implemented validation assuming specific field names (id, type, timestamp) but webhook sent different fields (name, email, phone).
+
+**Solution:** 
+1. Always examine sample webhook payload first
+2. Use dynamic/configurable validation or
+3. Implement schema discovery logic
+4. Test validation with actual expected input data
+
+**Prevention:** QA must validate with realistic test data before deployment.
+
+**Example:**
+```javascript
+// BAD - Hardcoded field validation
+if (!data.id || !data.type || !data.timestamp) {
+  throw new Error('Missing required fields: id, type, timestamp');
+}
+
+// GOOD - Dynamic validation
+const requiredFields = ['name', 'email', 'phone']; // Configure based on actual input
+const missingFields = requiredFields.filter(field => !data[field]);
+if (missingFields.length > 0) {
+  throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+}
+```
+
+---
+
+### L-115: Test Webhook With Real Data Structure
+
+**Category:** testing
+**Severity:** important
+**Added:** 2025-12-27
+
+**Problem:** Workflow validation passed but failed on execution due to payload structure mismatch.
+
+**Root Cause:** Testing phase didn't use realistic webhook payload structure.
+
+**Solution:** 
+1. Phase 5 testing MUST use realistic webhook payloads
+2. Document expected input schema before building validation
+3. Test webhook endpoint with sample data from actual source system
+
+**Prevention:** QA checklist must include 'realistic payload testing'.
+
+---
+
+### L-116: Session Blocked at Cycle 0 Pattern
+
+**Category:** session_management
+**Severity:** important
+**Added:** 2025-12-27
+
+When sessions are blocked at cycle 0 with workflow_id='unknown', this indicates a pre-flight failure before any agents could begin work. Common causes: (1) User request too vague to determine workflow type, (2) Missing critical requirements that prevent scope determination, (3) System-level issues preventing session initialization, (4) User request outside n8n workflow domain. Prevention: Implement better requirement clarification at session start.
+
+---
