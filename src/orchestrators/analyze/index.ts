@@ -15,16 +15,14 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { SharedContextStore } from '../../shared/context-store.js';
 import { MessageCoordinator } from '../../shared/message-protocol.js';
+import { ApprovalFlow } from './approval-flow.js';
 import { architectAgent } from '../../agents/architect.js';
 import { researcherAgent } from '../../agents/researcher.js';
 import { analystAgent } from '../../agents/analyst.js';
 import type {
   AnalysisResult,
   AnalysisReport,
-  WorkflowNode,
-  WorkflowConnections,
-  ErrorPattern,
-  Execution,
+  SessionContext,
 } from '../../types.js';
 
 // Project paths
@@ -317,6 +315,82 @@ export class AnalyzerOrchestrator {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Analyze with interactive approval flow
+   * Call this for CLI use - prompts user after analysis
+   */
+  async analyzeWithApproval(
+    workflowId: string,
+    projectPath?: string
+  ): Promise<AnalysisResult> {
+    // Run standard analysis first
+    const result = await this.analyze(workflowId, projectPath);
+
+    if (!result.success || !result.report || !result.outputPath) {
+      return result;
+    }
+
+    // Create approval flow
+    const approvalFlow = new ApprovalFlow(result.outputPath);
+
+    try {
+      const choice = await approvalFlow.promptUser(result.report);
+
+      switch (choice) {
+        case 'auto-fix': {
+          // Create session for fixing
+          const session: SessionContext = {
+            id: result.analysisId,
+            workflowId,
+            stage: 'build',
+            cycle: 0,
+            startedAt: new Date(),
+            lastUpdatedAt: new Date(),
+            history: [],
+            fixAttempts: [],
+            mcpCalls: [],
+            agentResults: new Map(),
+          };
+
+          const fixResults = await approvalFlow.runAutoFix(
+            result.report,
+            workflowId,
+            session
+          );
+
+          console.log(`\n${fixResults.filter(r => r.applied).length} fixes applied`);
+          break;
+        }
+
+        case 'manual':
+          await approvalFlow.showManualInstructions(result.report);
+          break;
+
+        case 'save':
+          console.log(`\nReport saved: ${result.outputPath}`);
+          break;
+
+        case 'quit':
+          console.log('\nExiting without saving.');
+          // Delete report files
+          try {
+            const timestamp = new Date().toISOString().split('T')[0];
+            await fs.unlink(result.outputPath);
+            await fs.unlink(
+              path.join(REPORTS_DIR, `ANALYSIS-${workflowId}-${timestamp}.json`)
+            );
+          } catch {
+            // Ignore delete errors
+          }
+          break;
+      }
+    } finally {
+      approvalFlow.close();
+    }
+
+    return result;
   }
 }
 

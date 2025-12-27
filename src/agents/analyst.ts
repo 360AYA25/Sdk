@@ -43,8 +43,6 @@ const LEARNINGS_PATH = path.resolve(process.cwd(), 'docs', 'learning', 'LEARNING
 const CONTEXT_PATH = path.resolve(process.cwd(), 'docs', 'SYSTEM-CONTEXT.md');
 
 export class AnalystAgent extends BaseAgent {
-  private mode: AgentMode = 'create';
-
   constructor() {
     super('analyst', {
       model: 'claude-sonnet-4-20250514',

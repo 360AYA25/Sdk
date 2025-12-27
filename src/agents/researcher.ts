@@ -34,8 +34,6 @@ import type { SharedContextStore } from '../shared/context-store.js';
 import type { MessageCoordinator } from '../shared/message-protocol.js';
 
 export class ResearcherAgent extends BaseAgent {
-  private mode: AgentMode = 'create';
-
   constructor() {
     super('researcher', {
       model: 'claude-sonnet-4-20250514',

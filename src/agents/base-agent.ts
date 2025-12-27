@@ -19,6 +19,7 @@ import type {
   SessionContext,
   AgentResult,
   MCPCall,
+  AgentMode,
 } from '../types.js';
 import { sessionManager } from '../orchestrator/session-manager.js';
 
@@ -69,6 +70,7 @@ export abstract class BaseAgent {
   protected role: AgentRole;
   protected instructions: string = '';
   protected indexContent: string = '';
+  protected mode: AgentMode = 'create';
 
   constructor(role: AgentRole, config: AgentConfig) {
     this.role = role;
@@ -170,13 +172,16 @@ ${skills}
     context?: Record<string, unknown>
   ): Promise<AgentResult> {
     // Wrap in timeout to prevent Agent SDK from hanging
-    // Dynamic timeout based on agent role and workflow complexity
+    // Dynamic timeout based on agent role, mode, and workflow complexity
     const nodeCount = session.requirements?.nodeCount || 0;
     const baseTimeout = 90000; // 90 seconds
     const complexWorkflow = nodeCount >= 10;
 
     let TIMEOUT_MS = baseTimeout;
-    if (this.role === 'researcher' && complexWorkflow) {
+    // ANALYZE mode gets longer timeouts for all agents (reading files, research)
+    if (this.mode === 'analyze') {
+      TIMEOUT_MS = 300000; // 5 minutes for analysis
+    } else if (this.role === 'researcher' && complexWorkflow) {
       TIMEOUT_MS = 180000; // 3 minutes for complex research
     } else if (this.role === 'builder' && complexWorkflow) {
       TIMEOUT_MS = 180000; // 3 minutes for complex builds
@@ -260,23 +265,11 @@ ${taskPrompt}`;
         }
       }
 
-      // Log all MCP calls
-      for (const call of mcpCalls) {
-        await sessionManager.logMCPCall(session.id, call);
-      }
-
       // Debug: show raw result
       console.log(`[${this.role}] Raw result (first 500 chars): ${result.slice(0, 500)}`);
 
       // Process result
       const processedResult = await this.processResult(result, session, mcpCalls);
-
-      // Log to session
-      await sessionManager.addHistory(session.id, {
-        role: 'assistant',
-        content: result,
-        agentRole: this.role,
-      });
 
       // Store result
       const agentResult: AgentResult = {
@@ -287,7 +280,18 @@ ${taskPrompt}`;
         timestamp: new Date(),
       };
 
-      await sessionManager.storeAgentResult(session.id, agentResult);
+      // Only log to SessionManager in CREATE mode (not ANALYZE mode)
+      if (this.mode === 'create') {
+        for (const call of mcpCalls) {
+          await sessionManager.logMCPCall(session.id, call);
+        }
+        await sessionManager.addHistory(session.id, {
+          role: 'assistant',
+          content: result,
+          agentRole: this.role,
+        });
+        await sessionManager.storeAgentResult(session.id, agentResult);
+      }
 
       return agentResult;
     } catch (error) {

@@ -19,6 +19,7 @@ A new ANALYZE mode for deep workflow analysis with inter-agent communication.
 - `SharedContextStore` - Central data store with write permissions per agent
 - `MessageCoordinator` - Inter-agent Q&A protocol for clarification
 - `AnalyzerOrchestrator` - 4-phase analysis flow (Load → Understand → Investigate → Synthesize)
+- `ApprovalFlow` - Interactive CLI for post-analysis actions
 
 **Agent Extensions**
 - `setMode('analyze')` for Architect, Researcher, Analyst agents
@@ -29,6 +30,7 @@ A new ANALYZE mode for deep workflow analysis with inter-agent communication.
 - `src/shared/context-store.ts` - SharedContextStore implementation
 - `src/shared/message-protocol.ts` - MessageCoordinator for Q&A
 - `src/orchestrators/analyze/index.ts` - Analyzer orchestrator
+- `src/orchestrators/analyze/approval-flow.ts` - Interactive approval CLI
 - `src/shared/prompts/architect-analyze.md` - Architect analysis prompt
 - `src/shared/prompts/researcher-analyze.md` - Researcher audit prompt
 - `src/shared/prompts/analyst-analyze.md` - Analyst synthesis prompt
@@ -40,10 +42,18 @@ A new ANALYZE mode for deep workflow analysis with inter-agent communication.
 
 **New Commands**
 ```bash
-npm run analyze -- <workflowId>
-npm run analyze -- <workflowId> <projectPath>
-npm run dev:analyze -- <workflowId>
+npm run analyze -- <workflowId>                    # Interactive (with approval flow)
+npm run analyze -- <workflowId> <projectPath>      # With project docs
+npm run analyze -- <workflowId> --no-interactive   # Just generate report
+npm run dev:analyze -- <workflowId>                # Dev mode
 ```
+
+**Interactive Approval Flow**
+After analysis, user can choose:
+- `[A] Auto-fix` - Apply P0/P1 fixes via Builder agent
+- `[M] Manual` - Show step-by-step instructions
+- `[S] Save` - Save report and exit
+- `[Q] Quit` - Exit without saving
 
 ### Analysis Flow
 

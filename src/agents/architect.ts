@@ -75,8 +75,6 @@ export interface CredentialsResult {
 }
 
 export class ArchitectAgent extends BaseAgent {
-  private mode: AgentMode = 'create';
-
   constructor() {
     super('architect', {
       model: 'claude-sonnet-4-20250514',

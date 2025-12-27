@@ -26,30 +26,38 @@ function validateEnv(): void {
 }
 
 // Parse command line arguments
-function parseArgs(): { mode: 'create' | 'analyze'; args: string[] } {
+function parseArgs(): { mode: 'create' | 'analyze'; args: string[]; interactive: boolean } {
   const args = process.argv.slice(2);
+  let interactive = true;
+
+  // Check for --no-interactive flag
+  const noInteractiveIndex = args.indexOf('--no-interactive');
+  if (noInteractiveIndex >= 0) {
+    interactive = false;
+    args.splice(noInteractiveIndex, 1);
+  }
 
   // Check for --mode flag
   const modeIndex = args.indexOf('--mode');
   if (modeIndex >= 0 && args[modeIndex + 1]) {
     const mode = args[modeIndex + 1] as 'create' | 'analyze';
     const filteredArgs = args.filter((_, i) => i !== modeIndex && i !== modeIndex + 1);
-    return { mode, args: filteredArgs };
+    return { mode, args: filteredArgs, interactive };
   }
 
   // Check for analyze keyword (for npm run analyze)
   if (args[0] === 'analyze') {
-    return { mode: 'analyze', args: args.slice(1) };
+    return { mode: 'analyze', args: args.slice(1), interactive };
   }
 
-  return { mode: 'create', args };
+  return { mode: 'create', args, interactive };
 }
 
 // Main entry point
 async function main(): Promise<void> {
   validateEnv();
 
-  const { mode, args } = parseArgs();
+  const { mode, args, interactive } = parseArgs();
 
   if (mode === 'analyze') {
     // ========== ANALYZE MODE ==========
@@ -64,6 +72,10 @@ async function main(): Promise<void> {
       console.log('Usage:');
       console.log('  npm run analyze -- <workflowId>');
       console.log('  npm run analyze -- <workflowId> <projectPath>');
+      console.log('  npm run analyze -- <workflowId> --no-interactive');
+      console.log('');
+      console.log('Options:');
+      console.log('  --no-interactive    Skip approval flow, just generate report');
       console.log('');
       console.log('Examples:');
       console.log('  npm run analyze -- sw3Qs3Fe3JahEbbW');
@@ -75,15 +87,19 @@ async function main(): Promise<void> {
     if (projectPath) {
       console.log(`[ANALYZE] Project: ${projectPath}`);
     }
+    console.log(`[ANALYZE] Interactive: ${interactive}`);
     console.log('');
 
-    const result = await analyzerOrchestrator.analyze(workflowId, projectPath);
+    // Use analyzeWithApproval for interactive mode, analyze for non-interactive
+    const result = interactive
+      ? await analyzerOrchestrator.analyzeWithApproval(workflowId, projectPath)
+      : await analyzerOrchestrator.analyze(workflowId, projectPath);
 
     if (result.success) {
-      console.log('\n✅ Analysis completed successfully');
-      console.log(`📄 Report: ${result.outputPath}`);
+      console.log('\nAnalysis completed successfully');
+      console.log(`Report: ${result.outputPath}`);
     } else {
-      console.error('\n❌ Analysis failed:', result.error);
+      console.error('\nAnalysis failed:', result.error);
       process.exit(1);
     }
 
@@ -137,6 +153,7 @@ export { qaAgent } from './agents/qa.js';
 export { analystAgent } from './agents/analyst.js';
 export { SharedContextStore } from './shared/context-store.js';
 export { MessageCoordinator } from './shared/message-protocol.js';
+export { ApprovalFlow } from './orchestrators/analyze/approval-flow.js';
 export * from './types.js';
 
 // Run if executed directly
