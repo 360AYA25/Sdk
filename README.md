@@ -8,30 +8,59 @@
 
 ```bash
 npm install
-cp .env.example .env  # Add ANTHROPIC_API_KEY
-npm start -- "Create Telegram bot"
+cp .env.example .env  # Add ANTHROPIC_API_KEY (optional)
+npm run build
 ```
 
-## Usage
+## Modes
+
+### CREATE Mode (создание workflow)
 
 ```bash
-npm start -- "Create workflow"       # Basic
-INTERACTIVE_MODE=true npm start      # Interactive
-npm test                            # Tests
+# Базовый запуск
+npm start -- "Create Telegram bot with AI"
+
+# Интерактивный режим (с подтверждениями)
+INTERACTIVE_MODE=true npm start
+
+# Dev режим (без build)
+npm run dev -- "Create workflow"
 ```
+
+### ANALYZE Mode (анализ существующего workflow)
+
+```bash
+# Анализ по ID workflow
+npm run analyze -- sw3Qs3Fe3JahEbbW
+
+# Анализ с проектной документацией
+npm run analyze -- sw3Qs3Fe3JahEbbW /path/to/project
+
+# Dev режим
+npm run dev:analyze -- sw3Qs3Fe3JahEbbW
+```
+
+**Что делает ANALYZE:**
+1. Загружает контекст (docs + workflow + executions)
+2. Architect понимает intent и архитектуру
+3. Researcher проводит технический аудит
+4. Analyst синтезирует отчёт с рекомендациями
+
+**Output:** `reports/ANALYSIS-{workflowId}-{date}.md`
 
 ## Architecture
 
 ```
-User → Orchestrator → 5 Agents → 6 Gates → QA → Done
+CREATE:  User → Orchestrator → 5 Agents → 6 Gates → QA → Done
+ANALYZE: User → Analyzer → Architect → Researcher → Analyst → Report
 ```
 
 **Agents:**
-- Architect (Sonnet) - дизайн
-- Researcher (Sonnet) - поиск
-- Builder (Opus) - создание
+- Architect (Sonnet) - дизайн / понимание intent
+- Researcher (Sonnet) - поиск / технический аудит
+- Builder (Opus) - создание JSON
 - QA (Sonnet) - валидация
-- Analyst (Sonnet) - post-mortem
+- Analyst (Sonnet) - post-mortem / синтез отчёта
 
 **Gates:** Progressive escalation, Blueprint check, Phase 5 testing, ALREADY_TRIED, MCP verify, Hypothesis
 
@@ -39,27 +68,42 @@ User → Orchestrator → 5 Agents → 6 Gates → QA → Done
 
 ```
 src/
-├── agents/          # 5 agents
-├── orchestrator/    # routing + gates
-└── shared/prompts/  # инструкции
+├── agents/              # 5 agents (с setMode для analyze)
+├── orchestrator/        # CREATE mode routing
+├── orchestrators/
+│   └── analyze/         # ANALYZE mode orchestrator
+└── shared/
+    ├── prompts/         # инструкции (+ *-analyze.md)
+    ├── context-store.ts # SharedContextStore
+    └── message-protocol.ts # Q&A между агентами
 
-tests/               # 43 tests
-config/              # конфиги
-docs/                # ARCHITECTURE.md
+tests/                   # 43 tests
+config/                  # конфиги
+reports/                 # ANALYZE output
 ```
 
 ## Docs
 
-- [CHANGELOG.md](./CHANGELOG.md) - история v1.0.0
+- [CHANGELOG.md](./CHANGELOG.md) - история версий
 - [CHECKLIST.md](./CHECKLIST.md) - verification
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) - архитектура
 
-## Scripts
+## All Scripts
 
 ```bash
-npm start              # run
-npm run interactive    # user prompts
-npm test              # all tests
-npm run build         # compile
-npm run typecheck     # check types
+# CREATE mode
+npm start                # production
+npm run dev              # development
+npm run interactive      # с user prompts
+
+# ANALYZE mode
+npm run analyze          # production
+npm run dev:analyze      # development
+
+# Build & Test
+npm run build            # compile TS
+npm run typecheck        # check types
+npm test                 # all 43 tests
+npm run test:unit        # unit only
+npm run test:watch       # watch mode
 ```

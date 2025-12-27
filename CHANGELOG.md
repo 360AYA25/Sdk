@@ -7,6 +7,101 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.0] - 2025-12-27
+
+### ✨ New Feature: Context-First Workflow Analyzer
+
+A new ANALYZE mode for deep workflow analysis with inter-agent communication.
+
+### Added
+
+**Analyze Mode Infrastructure**
+- `SharedContextStore` - Central data store with write permissions per agent
+- `MessageCoordinator` - Inter-agent Q&A protocol for clarification
+- `AnalyzerOrchestrator` - 4-phase analysis flow (Load → Understand → Investigate → Synthesize)
+
+**Agent Extensions**
+- `setMode('analyze')` for Architect, Researcher, Analyst agents
+- Separate prompt files for analyze mode (`*-analyze.md`)
+- Mode-specific MCP tool configurations
+
+**New Files**
+- `src/shared/context-store.ts` - SharedContextStore implementation
+- `src/shared/message-protocol.ts` - MessageCoordinator for Q&A
+- `src/orchestrators/analyze/index.ts` - Analyzer orchestrator
+- `src/shared/prompts/architect-analyze.md` - Architect analysis prompt
+- `src/shared/prompts/researcher-analyze.md` - Researcher audit prompt
+- `src/shared/prompts/analyst-analyze.md` - Analyst synthesis prompt
+
+**New Types** (~300 lines in `src/types.ts`)
+- `SharedContext`, `ArchitectAnalysis`, `ResearcherAnalysisFindings`
+- `AnalysisReport`, `ReportFinding`, `Recommendation`, `RoadmapItem`
+- `AgentMessage`, `MessageType`, `MessagePriority`, `QAExchange`
+
+**New Commands**
+```bash
+npm run analyze -- <workflowId>
+npm run analyze -- <workflowId> <projectPath>
+npm run dev:analyze -- <workflowId>
+```
+
+### Analysis Flow
+
+```
+Phase 0: Load Context (parallel)
+  ├── Project docs (README, TODO, PLAN)
+  ├── Workflow data via MCP
+  └── Execution history
+
+Phase 1: Architect Understanding
+  └── Business context, service architecture, data flow, gaps
+
+Phase 2: Researcher Investigation
+  ├── Node-by-node audit
+  ├── Connection analysis
+  ├── Execution patterns
+  └── Q&A with Architect if needed
+
+Phase 3: Analyst Synthesis
+  ├── Cross-reference findings
+  ├── Prioritize issues (P0-P3)
+  ├── Generate recommendations
+  └── Create roadmap
+
+Phase 4: Report Generation
+  ├── Markdown report (reports/ANALYSIS-xxx.md)
+  └── JSON report (reports/ANALYSIS-xxx.json)
+```
+
+### Output Example
+
+```
+✅ Analysis complete!
+Report: reports/ANALYSIS-sw3Qs3Fe3JahEbbW-2025-12-27.md
+Summary:
+  • Overall health: needs_attention
+  • Critical issues: 1
+  • Total issues: 5
+  • Recommendations: 4
+  • Q&A exchanges: 2
+```
+
+### Technical Details
+
+- CREATE mode unchanged in `src/orchestrator/`
+- Agents switch modes via `setMode()` method
+- Automatic mode reset to 'create' after analysis
+- Reports saved to `reports/` directory
+- Sessions saved to `sessions/analyze/`
+
+### Compatibility
+
+- ✅ All 43 existing tests pass
+- ✅ TypeScript compilation: 0 errors
+- ✅ CREATE mode fully backward compatible
+
+---
+
 ## [1.0.2] - 2025-12-27 ⭐ **STABLE**
 
 > **🏆 Most Stable Release** - Production-ready with critical Agent SDK hang fix

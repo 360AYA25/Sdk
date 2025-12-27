@@ -24,9 +24,18 @@ import type {
   NodeInfo,
   WorkflowInfo,
   CredentialInfo,
+  AgentMode,
+  ResearcherAnalysisFindings,
+  AgentMessage,
+  NodeAudit,
+  ConnectionIssue,
 } from '../types.js';
+import type { SharedContextStore } from '../shared/context-store.js';
+import type { MessageCoordinator } from '../shared/message-protocol.js';
 
 export class ResearcherAgent extends BaseAgent {
+  private mode: AgentMode = 'create';
+
   constructor() {
     super('researcher', {
       model: 'claude-sonnet-4-20250514',
@@ -44,6 +53,44 @@ export class ResearcherAgent extends BaseAgent {
       promptFile: 'researcher.md',
       indexFile: 'researcher_nodes.md',
     });
+  }
+
+  /**
+   * Set operating mode - changes behavior and prompts
+   */
+  setMode(mode: AgentMode): void {
+    this.mode = mode;
+
+    if (mode === 'analyze') {
+      this.config.promptFile = 'researcher-analyze.md';
+      // In analyze mode, add validation tool
+      this.config.mcpTools = [
+        'mcp__n8n-mcp__search_nodes',
+        'mcp__n8n-mcp__get_node',
+        'mcp__n8n-mcp__n8n_get_workflow',
+        'mcp__n8n-mcp__n8n_executions',
+        'mcp__n8n-mcp__n8n_validate_workflow',
+        'mcp__n8n-mcp__validate_node',
+      ];
+    } else {
+      this.config.promptFile = 'researcher.md';
+      this.config.mcpTools = [
+        'mcp__n8n-mcp__search_nodes',
+        'mcp__n8n-mcp__get_node',
+        'mcp__n8n-mcp__get_template',
+        'mcp__n8n-mcp__search_templates',
+        'mcp__n8n-mcp__n8n_list_workflows',
+        'mcp__n8n-mcp__n8n_get_workflow',
+        'mcp__n8n-mcp__n8n_executions',
+      ];
+    }
+  }
+
+  /**
+   * Get current mode
+   */
+  getMode(): AgentMode {
+    return this.mode;
   }
 
   /**
@@ -291,6 +338,232 @@ Return JSON:
       confidence: number;
       evidence: string[];
     };
+  }
+
+  // ============================================
+  // ANALYZE MODE METHODS
+  // ============================================
+
+  /**
+   * Audit workflow in ANALYZE mode
+   */
+  async auditWorkflow(
+    store: SharedContextStore,
+    coordinator: MessageCoordinator
+  ): Promise<ResearcherAnalysisFindings> {
+    if (this.mode !== 'analyze') {
+      throw new Error('auditWorkflow only available in ANALYZE mode');
+    }
+
+    const workflowData = store.get('workflowData');
+    const nodeSchemas = store.get('nodeSchemas');
+    const executionHistory = store.get('executionHistory');
+    const architectContext = store.get('architectContext');
+
+    // Create minimal session
+    const session: SessionContext = {
+      id: store.get('analysisId'),
+      stage: 'research',
+      cycle: 0,
+      startedAt: store.get('startedAt'),
+      lastUpdatedAt: new Date(),
+      history: [],
+      fixAttempts: [],
+      mcpCalls: [],
+      agentResults: new Map(),
+    };
+
+    const result = await this.invoke(
+      session,
+      'Conduct technical audit of workflow',
+      {
+        workflow: {
+          id: workflowData.id,
+          name: workflowData.name,
+          nodes: workflowData.nodes,
+          connections: workflowData.connections,
+        },
+        nodeSchemas,
+        executionHistory: {
+          total: executionHistory.total,
+          successRate: executionHistory.successRate,
+          errorPatterns: executionHistory.errorPatterns,
+        },
+        architectContext: architectContext ? {
+          purpose: architectContext.businessContext.purpose,
+          expectedFlow: architectContext.dataFlow.diagram,
+          gaps: architectContext.gapAnalysis.gaps,
+        } : null,
+        instruction: `## TECHNICAL AUDIT TASK
+
+Conduct a comprehensive technical audit of this workflow.
+
+### 1. Node-by-Node Audit
+For each node, check:
+- Is typeVersion current or outdated?
+- Are required parameters configured?
+- Are there deprecated patterns?
+- Are credentials properly referenced?
+
+Use get_node to get schema for each node type.
+Use validate_node to check configurations.
+
+### 2. Connection Analysis
+- Are all nodes connected? (find orphans)
+- Are there dead-end nodes? (output not used)
+- Is Switch/If routing correct?
+
+### 3. Execution Pattern Analysis
+- What is the success rate?
+- Which nodes fail most often?
+- What are common error types?
+
+### 4. Gap Analysis
+Compare with Architect's expected flow.
+- Does the implementation match intent?
+- What's missing or wrong?
+
+### 5. Questions for Architect
+If you find something unclear about INTENT:
+- Note it in questionsForArchitect
+
+Return JSON:
+{
+  "nodeAudits": [
+    {
+      "nodeName": "...",
+      "nodeType": "...",
+      "typeVersion": 1,
+      "latestVersion": 2,
+      "issues": [
+        {
+          "type": "version|config|credential|connection|expression|logic",
+          "severity": "critical|high|medium|low",
+          "message": "...",
+          "suggestion": "...",
+          "evidence": "..."
+        }
+      ],
+      "deprecationStatus": "current|outdated|deprecated"
+    }
+  ],
+  "connectionIssues": [
+    {
+      "type": "orphan|dead_end|routing|type_mismatch",
+      "nodeName": "...",
+      "message": "...",
+      "severity": "critical|high|medium|low"
+    }
+  ],
+  "executionPatterns": {
+    "successRate": 0.85,
+    "avgExecutionTime": 4500,
+    "problematicNodes": ["Node1", "Node2"],
+    "commonErrors": ["error1", "error2"],
+    "recommendations": ["rec1", "rec2"]
+  },
+  "questionsAsked": 0,
+  "totalIssues": 5
+}`,
+      }
+    );
+
+    // Parse findings
+    const findings = this.parseAnalysisFindings(result.data);
+
+    // Store in shared context
+    store.set('researcherFindings', findings, 'researcher');
+
+    return findings;
+  }
+
+  /**
+   * Parse analysis findings
+   */
+  private parseAnalysisFindings(data: unknown): ResearcherAnalysisFindings {
+    if (typeof data === 'object' && data !== null) {
+      const obj = data as Record<string, unknown>;
+      if ('nodeAudits' in obj) {
+        return obj as unknown as ResearcherAnalysisFindings;
+      }
+    }
+
+    if (typeof data === 'string') {
+      const jsonMatch = data.match(/```json\n([\s\S]*?)\n```/);
+      if (jsonMatch) {
+        try {
+          return JSON.parse(jsonMatch[1]) as ResearcherAnalysisFindings;
+        } catch {
+          // Fall through
+        }
+      }
+    }
+
+    return {
+      nodeAudits: [],
+      connectionIssues: [],
+      executionPatterns: {
+        successRate: 0,
+        problematicNodes: [],
+        commonErrors: [],
+        recommendations: [],
+      },
+      questionsAsked: 0,
+      totalIssues: 0,
+    };
+  }
+
+  /**
+   * Handle questions from other agents
+   */
+  async handleQuestion(
+    message: AgentMessage,
+    store: SharedContextStore
+  ): Promise<string> {
+    const workflowData = store.get('workflowData');
+    const findings = store.get('researcherFindings');
+
+    const session: SessionContext = {
+      id: store.get('analysisId'),
+      stage: 'research',
+      cycle: 0,
+      startedAt: store.get('startedAt'),
+      lastUpdatedAt: new Date(),
+      history: [],
+      fixAttempts: [],
+      mcpCalls: [],
+      agentResults: new Map(),
+    };
+
+    const result = await this.invoke(
+      session,
+      `Answer question from ${message.from}`,
+      {
+        question: message.content,
+        questionContext: message.context,
+        myFindings: findings,
+        workflowSummary: {
+          nodeCount: workflowData.nodes.length,
+          nodes: workflowData.nodes.map(n => ({ name: n.name, type: n.type })),
+        },
+        instruction: `Another agent has a question about the workflow.
+
+Question: ${message.content}
+
+Context: ${JSON.stringify(message.context)}
+
+Based on your technical audit:
+1. Answer their specific question with technical details
+2. Reference specific nodes if relevant
+3. If unsure, say so and suggest what to check
+
+Return your answer as plain text.`,
+      }
+    );
+
+    return typeof result.data === 'string'
+      ? result.data
+      : JSON.stringify(result.data);
   }
 }
 

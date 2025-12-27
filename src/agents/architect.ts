@@ -20,7 +20,11 @@ import type {
   MCPCall,
   ResearchFindings,
   CredentialInfo,
+  AgentMode,
+  ArchitectAnalysis,
+  AgentMessage,
 } from '../types.js';
+import type { SharedContextStore } from '../shared/context-store.js';
 
 export interface ArchitectOutput {
   type: 'clarification' | 'options' | 'blueprint' | 'credentials';
@@ -71,15 +75,43 @@ export interface CredentialsResult {
 }
 
 export class ArchitectAgent extends BaseAgent {
+  private mode: AgentMode = 'create';
+
   constructor() {
     super('architect', {
       model: 'claude-sonnet-4-20250514',
       maxTokens: 4096,
       skills: ['n8n-workflow-patterns', 'n8n-mcp-tools-expert'],
-      mcpTools: [], // Architect has NO MCP tools
+      mcpTools: [], // Architect has NO MCP tools in create mode
       promptFile: 'architect.md',
       indexFile: 'architect_patterns.md',
     });
+  }
+
+  /**
+   * Set operating mode - changes behavior and prompts
+   */
+  setMode(mode: AgentMode): void {
+    this.mode = mode;
+
+    if (mode === 'analyze') {
+      this.config.promptFile = 'architect-analyze.md';
+      // In analyze mode, architect gets read-only MCP access
+      this.config.mcpTools = [
+        'mcp__n8n-mcp__n8n_get_workflow',
+        'mcp__n8n-mcp__n8n_list_workflows',
+      ];
+    } else {
+      this.config.promptFile = 'architect.md';
+      this.config.mcpTools = [];
+    }
+  }
+
+  /**
+   * Get current mode
+   */
+  getMode(): AgentMode {
+    return this.mode;
   }
 
   /**
@@ -386,6 +418,220 @@ Return JSON:
     );
 
     return (result.data as ArchitectOutput).content as CredentialsResult;
+  }
+
+  // ============================================
+  // ANALYZE MODE METHODS
+  // ============================================
+
+  /**
+   * Analyze project context from documentation
+   * Only available in ANALYZE mode
+   */
+  async analyzeProjectContext(
+    store: SharedContextStore
+  ): Promise<ArchitectAnalysis> {
+    if (this.mode !== 'analyze') {
+      throw new Error('analyzeProjectContext only available in ANALYZE mode');
+    }
+
+    const projectDocs = store.get('projectDocs');
+    const workflowData = store.get('workflowData');
+
+    // Create a minimal session for invoke
+    const session: SessionContext = {
+      id: store.get('analysisId'),
+      stage: 'clarification',
+      cycle: 0,
+      startedAt: store.get('startedAt'),
+      lastUpdatedAt: new Date(),
+      history: [],
+      fixAttempts: [],
+      mcpCalls: [],
+      agentResults: new Map(),
+    };
+
+    const result = await this.invoke(
+      session,
+      'Analyze project context and workflow architecture',
+      {
+        projectDocs,
+        workflowSummary: {
+          name: workflowData.name,
+          nodeCount: workflowData.nodes.length,
+          nodeTypes: [...new Set(workflowData.nodes.map(n => n.type))],
+        },
+        instruction: `## STRATEGIC ANALYSIS TASK
+
+You have access to project documentation and workflow structure.
+Your goal: Understand the INTENT behind this system.
+
+### STEP 1: Business Context
+- What is this system's purpose?
+- Who are the users?
+- What problems does it solve?
+
+### STEP 2: Service Architecture
+- What external services are used? (Telegram, OpenAI, Supabase, etc.)
+- Why each service was chosen?
+- How do they interact?
+
+### STEP 3: Data Flow
+- How does data enter the system?
+- How is it processed?
+- How does it exit?
+
+### STEP 4: Design Decisions
+- What architectural choices were made?
+- What were the trade-offs?
+- What was prioritized?
+
+### STEP 5: Original Intent vs Current State
+- What was planned (from TODO, PLAN)?
+- What is implemented (from workflow)?
+- What gaps exist?
+
+Return JSON:
+{
+  "businessContext": {
+    "purpose": "...",
+    "users": ["..."],
+    "useCases": ["..."],
+    "successMetrics": ["..."]
+  },
+  "serviceArchitecture": {
+    "services": [
+      {"name": "Telegram", "role": "...", "whyChosen": "..."}
+    ],
+    "integrationPattern": "..."
+  },
+  "dataFlow": {
+    "entry": ["..."],
+    "processing": ["..."],
+    "exit": ["..."],
+    "diagram": "User → Telegram → ..."
+  },
+  "designDecisions": [
+    {"decision": "...", "rationale": "...", "tradeoff": "..."}
+  ],
+  "gapAnalysis": {
+    "planned": ["..."],
+    "implemented": ["..."],
+    "gaps": ["..."]
+  }
+}`,
+      }
+    );
+
+    // Parse result
+    const analysis = this.parseAnalysis(result.data);
+
+    // Store in shared context
+    store.set('architectContext', analysis, 'architect');
+
+    return analysis;
+  }
+
+  /**
+   * Parse analysis result
+   */
+  private parseAnalysis(data: unknown): ArchitectAnalysis {
+    // If data is already structured
+    if (typeof data === 'object' && data !== null) {
+      const obj = data as Record<string, unknown>;
+      if ('businessContext' in obj) {
+        return obj as unknown as ArchitectAnalysis;
+      }
+    }
+
+    // Try to parse from string
+    if (typeof data === 'string') {
+      const jsonMatch = data.match(/```json\n([\s\S]*?)\n```/);
+      if (jsonMatch) {
+        try {
+          return JSON.parse(jsonMatch[1]) as ArchitectAnalysis;
+        } catch {
+          // Fall through
+        }
+      }
+    }
+
+    // Return empty analysis
+    return {
+      businessContext: {
+        purpose: 'Unknown',
+        users: [],
+        useCases: [],
+        successMetrics: [],
+      },
+      serviceArchitecture: {
+        services: [],
+        integrationPattern: 'Unknown',
+      },
+      dataFlow: {
+        entry: [],
+        processing: [],
+        exit: [],
+        diagram: '',
+      },
+      designDecisions: [],
+      gapAnalysis: {
+        planned: [],
+        implemented: [],
+        gaps: [],
+      },
+    };
+  }
+
+  /**
+   * Handle questions from other agents
+   */
+  async handleQuestion(
+    message: AgentMessage,
+    store: SharedContextStore
+  ): Promise<string> {
+    const context = store.get('architectContext');
+    const projectDocs = store.get('projectDocs');
+
+    // Create minimal session
+    const session: SessionContext = {
+      id: store.get('analysisId'),
+      stage: 'clarification',
+      cycle: 0,
+      startedAt: store.get('startedAt'),
+      lastUpdatedAt: new Date(),
+      history: [],
+      fixAttempts: [],
+      mcpCalls: [],
+      agentResults: new Map(),
+    };
+
+    const result = await this.invoke(
+      session,
+      `Answer question from ${message.from}`,
+      {
+        question: message.content,
+        questionContext: message.context,
+        myAnalysis: context,
+        projectDocs,
+        instruction: `Another agent has a question for you.
+
+Question: ${message.content}
+
+Context they provided: ${JSON.stringify(message.context)}
+
+Based on your understanding of the project:
+1. Answer their specific question
+2. Cite evidence from documentation if available
+3. If you're not sure, say so clearly
+
+Return your answer as plain text (not JSON).`,
+      }
+    );
+
+    return typeof result.data === 'string'
+      ? result.data
+      : JSON.stringify(result.data);
   }
 }
 

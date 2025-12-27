@@ -7,6 +7,8 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
+    "analyze": "node dist/index.js analyze",
+    "dev:analyze": "tsx src/index.ts analyze",
     "build": "tsc",
     "clean": "rm -rf dist",
     "rebuild": "npm run clean && npm run build",

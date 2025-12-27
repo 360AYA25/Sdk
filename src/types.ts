@@ -306,3 +306,330 @@ export interface GateRule {
   action: string;
   message: string;
 }
+
+// ============================================
+// ANALYZE MODE Types
+// ============================================
+
+export type AgentMode = 'create' | 'analyze';
+
+export type AnalysisStatus =
+  | 'loading'
+  | 'understanding'
+  | 'investigating'
+  | 'synthesizing'
+  | 'complete';
+
+// Shared Context Store
+export interface SharedContext {
+  // === RAW DATA (loaded at start) ===
+  projectDocs: ProjectDocs;
+  workflowData: WorkflowData;
+  nodeSchemas: Record<string, NodeSchema>;
+  executionHistory: ExecutionHistory;
+  supabaseSchema?: DatabaseSchema;
+
+  // === AGENT CONTRIBUTIONS ===
+  architectContext: ArchitectAnalysis | null;
+  researcherFindings: ResearcherAnalysisFindings | null;
+  analystReport: AnalysisReport | null;
+
+  // === INTER-AGENT COMMUNICATION ===
+  messageQueue: AgentMessage[];
+  resolvedMessages: AgentMessage[];
+
+  // === METADATA ===
+  analysisId: string;
+  startedAt: Date;
+  lastUpdatedAt: Date;
+  status: AnalysisStatus;
+}
+
+export interface ProjectDocs {
+  readme: string | null;
+  todo: string | null;
+  plan: string | null;
+  architecture: string | null;
+  contextFiles: Record<string, string>;
+}
+
+export interface WorkflowData {
+  id: string;
+  name: string;
+  active: boolean;
+  nodes: WorkflowNode[];
+  connections: WorkflowConnections;
+  settings: Record<string, unknown>;
+}
+
+export interface WorkflowNode {
+  id: string;
+  name: string;
+  type: string;
+  typeVersion: number;
+  position: [number, number];
+  parameters: Record<string, unknown>;
+  credentials?: Record<string, unknown>;
+  disabled?: boolean;
+  notes?: string;
+}
+
+export interface WorkflowConnections {
+  [sourceNodeId: string]: {
+    [outputType: string]: Array<{
+      node: string;
+      type: string;
+      index: number;
+    }[]>;
+  };
+}
+
+export interface NodeSchema {
+  name: string;
+  displayName: string;
+  description: string;
+  version: number;
+  properties: NodeProperty[];
+  credentials?: CredentialDefinition[];
+}
+
+export interface NodeProperty {
+  name: string;
+  displayName: string;
+  type: string;
+  required?: boolean;
+  default?: unknown;
+  options?: Array<{ name: string; value: string }>;
+  description?: string;
+}
+
+export interface CredentialDefinition {
+  name: string;
+  required: boolean;
+}
+
+export interface ExecutionHistory {
+  total: number;
+  successRate: number;
+  recentExecutions: Execution[];
+  errorPatterns: ErrorPattern[];
+}
+
+export interface Execution {
+  id: string;
+  status: 'success' | 'error' | 'waiting';
+  startedAt: Date;
+  finishedAt?: Date;
+  mode: string;
+  data?: unknown;
+}
+
+export interface ErrorPattern {
+  nodeType: string;
+  nodeName: string;
+  errorType: string;
+  count: number;
+  lastOccurred: Date;
+  message: string;
+}
+
+export interface DatabaseSchema {
+  tables: TableInfo[];
+  functions: FunctionInfo[];
+}
+
+export interface TableInfo {
+  name: string;
+  columns: ColumnInfo[];
+  rowCount?: number;
+}
+
+export interface ColumnInfo {
+  name: string;
+  type: string;
+  nullable: boolean;
+  default?: string;
+}
+
+export interface FunctionInfo {
+  name: string;
+  arguments: string;
+  returnType: string;
+}
+
+// Architect Analysis Output
+export interface ArchitectAnalysis {
+  businessContext: {
+    purpose: string;
+    users: string[];
+    useCases: string[];
+    successMetrics: string[];
+  };
+  serviceArchitecture: {
+    services: ServiceInfo[];
+    integrationPattern: string;
+  };
+  dataFlow: {
+    entry: string[];
+    processing: string[];
+    exit: string[];
+    diagram: string;
+  };
+  designDecisions: DesignDecision[];
+  gapAnalysis: {
+    planned: string[];
+    implemented: string[];
+    gaps: string[];
+  };
+}
+
+export interface ServiceInfo {
+  name: string;
+  role: string;
+  whyChosen: string;
+}
+
+export interface DesignDecision {
+  decision: string;
+  rationale: string;
+  tradeoff: string;
+}
+
+// Researcher Analysis Output
+export interface ResearcherAnalysisFindings {
+  nodeAudits: NodeAudit[];
+  connectionIssues: ConnectionIssue[];
+  executionPatterns: ExecutionPatternAnalysis;
+  questionsAsked: number;
+  totalIssues: number;
+}
+
+export interface NodeAudit {
+  nodeName: string;
+  nodeType: string;
+  typeVersion: number;
+  latestVersion?: number;
+  issues: NodeIssue[];
+  deprecationStatus: 'current' | 'outdated' | 'deprecated';
+}
+
+export interface NodeIssue {
+  type: 'version' | 'config' | 'credential' | 'connection' | 'expression' | 'logic';
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  message: string;
+  suggestion?: string;
+  evidence?: string;
+}
+
+export interface ConnectionIssue {
+  type: 'orphan' | 'dead_end' | 'routing' | 'type_mismatch';
+  nodeName: string;
+  message: string;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+}
+
+export interface ExecutionPatternAnalysis {
+  successRate: number;
+  avgExecutionTime?: number;
+  problematicNodes: string[];
+  commonErrors: string[];
+  recommendations: string[];
+}
+
+// Analysis Report Output
+export interface AnalysisReport {
+  summary: {
+    workflowId: string;
+    workflowName: string;
+    analysisDate: Date;
+    criticalIssues: number;
+    totalIssues: number;
+    overallHealth: 'healthy' | 'needs_attention' | 'critical';
+  };
+
+  findings: ReportFinding[];
+  recommendations: Recommendation[];
+  roadmap: RoadmapItem[];
+
+  agentContributions: {
+    architect: string;
+    researcher: string;
+    analyst: string;
+  };
+
+  qaExchanges: QAExchange[];
+}
+
+export interface ReportFinding {
+  id: string;
+  category: 'architecture' | 'implementation' | 'operations' | 'security';
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  title: string;
+  description: string;
+  evidence: string[];
+  rootCause?: string;
+  affectedNodes?: string[];
+}
+
+export interface Recommendation {
+  id: string;
+  priority: 'P0' | 'P1' | 'P2' | 'P3';
+  title: string;
+  description: string;
+  effort: 'low' | 'medium' | 'high';
+  impact: 'low' | 'medium' | 'high';
+  relatedFindings: string[];
+}
+
+export interface RoadmapItem {
+  phase: number;
+  title: string;
+  items: string[];
+  dependencies: string[];
+  estimatedEffort: string;
+}
+
+export interface QAExchange {
+  from: AgentRole;
+  to: AgentRole;
+  question: string;
+  answer: string;
+  timestamp: Date;
+}
+
+// Inter-Agent Message Protocol
+export type MessageType = 'question' | 'answer' | 'clarification' | 'notify';
+export type MessagePriority = 'critical' | 'high' | 'normal' | 'low';
+
+export interface AgentMessage {
+  id: string;
+  type: MessageType;
+  priority: MessagePriority;
+
+  from: AgentRole;
+  to: AgentRole | 'all';
+
+  subject: string;
+  content: string;
+
+  // For questions
+  context?: Record<string, unknown>;
+  expectedResponseType?: 'boolean' | 'text' | 'json';
+
+  // For answers
+  inResponseTo?: string;
+
+  // Metadata
+  timestamp: Date;
+  status: 'pending' | 'processing' | 'resolved' | 'timeout';
+  retryCount: number;
+}
+
+// Analysis Result
+export interface AnalysisResult {
+  success: boolean;
+  report?: AnalysisReport;
+  outputPath?: string;
+  analysisId: string;
+  error?: string;
+}
