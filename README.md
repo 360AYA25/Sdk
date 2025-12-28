@@ -30,21 +30,42 @@ npm run dev -- "Create workflow"
 ### ANALYZE Mode (анализ существующего workflow)
 
 ```bash
-# Анализ по ID workflow
+# Интерактивный анализ (с выбором действий после)
 npm run analyze -- sw3Qs3Fe3JahEbbW
 
-# Анализ с проектной документацией
+# С проектной документацией
 npm run analyze -- sw3Qs3Fe3JahEbbW /path/to/project
+
+# Только отчёт (без интерактива)
+npm run analyze -- sw3Qs3Fe3JahEbbW --no-interactive
 
 # Dev режим
 npm run dev:analyze -- sw3Qs3Fe3JahEbbW
 ```
 
-**Что делает ANALYZE:**
-1. Загружает контекст (docs + workflow + executions)
-2. Architect понимает intent и архитектуру
-3. Researcher проводит технический аудит
-4. Analyst синтезирует отчёт с рекомендациями
+**Интерактивный режим - после анализа:**
+```
+What would you like to do?
+
+[A] Apply fixes automatically (3 priority fixes - Builder agent)
+[M] Review and apply manually (show detailed instructions)
+[S] Save report and exit
+[Q] Quit without saving
+
+Choice [A/M/S/Q]: A
+```
+
+**Auto-fix (опция A):**
+- Запускает ПОЛНУЮ 5-агентную систему (Architect → Researcher → Builder → QA → Analyst)
+- Все 6 валидационных gates активны
+- Применяет P0/P1 фиксы через полный orchestrator
+- Спрашивает подтверждение перед стартом `[Y/n]`
+
+**Фазы ANALYZE:**
+1. Load - загрузка контекста (docs + workflow + executions)
+2. Understand - Architect анализирует intent и архитектуру
+3. Investigate - Researcher проводит технический аудит
+4. Synthesize - Analyst генерирует отчёт с рекомендациями
 
 **Output:** `reports/ANALYSIS-{workflowId}-{date}.md`
 
@@ -97,7 +118,8 @@ npm run dev              # development
 npm run interactive      # с user prompts
 
 # ANALYZE mode
-npm run analyze          # production
+npm run analyze          # интерактивный (с auto-fix)
+npm run analyze -- --no-interactive  # только отчёт
 npm run dev:analyze      # development
 
 # Build & Test

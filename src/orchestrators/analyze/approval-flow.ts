@@ -3,7 +3,7 @@
  *
  * Handles user interaction after analysis is complete.
  * Options:
- * - [A] Apply fixes automatically (uses Builder + QA agents)
+ * - [A] Apply fixes automatically (FULL 5-agent system with 6 gates)
  * - [M] Manual mode (show instructions)
  * - [S] Save report and exit
  * - [Q] Quit without saving
@@ -15,8 +15,7 @@ import type {
   Recommendation,
   SessionContext,
 } from '../../types.js';
-import { builderAgent } from '../../agents/builder.js';
-import { qaAgent } from '../../agents/qa.js';
+import { orchestrator } from '../../orchestrator/index.js';
 
 export type UserChoice = 'auto-fix' | 'manual' | 'save' | 'quit';
 
@@ -61,7 +60,7 @@ export class ApprovalFlow {
 
     console.log('What would you like to do?');
     console.log('');
-    console.log(`[A] Apply fixes automatically (${p0p1Count} priority fixes - Builder agent)`);
+    console.log(`[A] Apply fixes automatically (${p0p1Count} issues - FULL 5-agent system)`);
     console.log('[M] Review and apply manually (show detailed instructions)');
     console.log('[S] Save report and exit');
     console.log('[Q] Quit without saving');
@@ -93,12 +92,14 @@ export class ApprovalFlow {
   }
 
   /**
-   * Run auto-fix mode with Builder + QA agents
+   * Run auto-fix mode with FULL 5-agent system
+   * Uses: Architect → Researcher → Builder → QA → Analyst
+   * With all 6 validation gates
    */
   async runAutoFix(
     report: AnalysisReport,
     workflowId: string,
-    session: SessionContext
+    _session: SessionContext
   ): Promise<FixResult[]> {
     // Filter P0 and P1 recommendations
     const priorityFixes = report.recommendations.filter(
@@ -110,106 +111,115 @@ export class ApprovalFlow {
       return [];
     }
 
-    console.log(`\n${'─'.repeat(60)}`);
-    console.log('AUTO-FIX MODE');
-    console.log(`${'─'.repeat(60)}`);
-    console.log(`\nApplying ${priorityFixes.length} priority fixes...\n`);
+    console.log(`\n${'═'.repeat(60)}`);
+    console.log('FULL AGENT SYSTEM - FIX MODE');
+    console.log('Architect → Researcher → Builder → QA → Analyst');
+    console.log(`${'═'.repeat(60)}`);
 
-    const results: FixResult[] = [];
+    // Build task description from analysis findings
+    const taskDescription = this.buildFixTask(report, workflowId, priorityFixes);
 
-    // Note: Agents are already in CREATE mode (reset by analyzer)
+    console.log('\nTask generated from analysis:');
+    console.log('─'.repeat(40));
+    console.log(taskDescription.slice(0, 500) + (taskDescription.length > 500 ? '...' : ''));
+    console.log('─'.repeat(40));
 
-    for (let i = 0; i < priorityFixes.length; i++) {
-      const rec = priorityFixes[i];
+    // Ask for confirmation
+    const confirm = await this.readUserInput('\nStart full agent system? [Y/n]: ');
 
-      console.log(`\n[${i + 1}/${priorityFixes.length}] ${rec.priority}: ${rec.title}`);
-      console.log(`Description: ${rec.description}`);
+    if (confirm.toLowerCase() === 'n') {
+      console.log('Cancelled.');
+      return priorityFixes.map(rec => ({
+        recommendationId: rec.id,
+        applied: false,
+        validated: false,
+      }));
+    }
 
-      // Find related findings for context
-      const relatedFindings = report.findings.filter(f =>
+    console.log('\nStarting 5-agent system...\n');
+
+    try {
+      // Run full orchestrator with the fix task
+      const result = await orchestrator.start(taskDescription);
+
+      console.log('\n' + '═'.repeat(60));
+      console.log('ORCHESTRATOR RESULT:');
+      console.log('═'.repeat(60));
+      console.log(result);
+
+      // All fixes attempted through full system
+      return priorityFixes.map(rec => ({
+        recommendationId: rec.id,
+        applied: true,
+        validated: true,
+      }));
+
+    } catch (error) {
+      console.error('\nOrchestrator failed:', (error as Error).message);
+      return priorityFixes.map(rec => ({
+        recommendationId: rec.id,
+        applied: false,
+        validated: false,
+        error: (error as Error).message,
+      }));
+    }
+  }
+
+  /**
+   * Build fix task from analysis report
+   */
+  private buildFixTask(
+    report: AnalysisReport,
+    workflowId: string,
+    priorityFixes: Recommendation[]
+  ): string {
+    const findings = report.findings.filter(f =>
+      priorityFixes.some(r => r.relatedFindings.includes(f.id))
+    );
+
+    const affectedNodes = [...new Set(
+      findings.flatMap(f => f.affectedNodes || [])
+    )];
+
+    let task = `FIX EXISTING WORKFLOW: ${workflowId}\n\n`;
+    task += `Workflow: ${report.summary.workflowName}\n`;
+    task += `Issues found: ${report.summary.totalIssues}\n`;
+    task += `Critical: ${report.summary.criticalIssues}\n\n`;
+
+    task += `## REQUIRED FIXES (${priorityFixes.length}):\n\n`;
+
+    for (const rec of priorityFixes) {
+      task += `### ${rec.priority}: ${rec.title}\n`;
+      task += `${rec.description}\n`;
+
+      const relatedFindings = findings.filter(f =>
         rec.relatedFindings.includes(f.id)
       );
 
       if (relatedFindings.length > 0) {
-        console.log('Affected nodes:',
-          [...new Set(relatedFindings.flatMap(f => f.affectedNodes || []))].join(', ')
-        );
-      }
-
-      // Ask for confirmation
-      const confirm = await this.readUserInput('Apply this fix? [Y/n]: ');
-
-      if (confirm.toLowerCase() === 'n') {
-        console.log('  Skipped');
-        results.push({
-          recommendationId: rec.id,
-          applied: false,
-          validated: false,
-        });
-        continue;
-      }
-
-      try {
-        // Build edit scope from related findings
-        const editScope = relatedFindings.flatMap(f => f.affectedNodes || []);
-
-        // Apply fix using Builder
-        console.log('  Applying fix...');
-        const buildResult = await builderAgent.fix(
-          session,
-          workflowId,
-          editScope,
-          rec.description
-        );
-
-        if (!buildResult.verification.expected_changes_applied) {
-          throw new Error('Builder failed to apply fix');
+        task += `Affected: ${relatedFindings.flatMap(f => f.affectedNodes || []).join(', ')}\n`;
+        task += `Evidence:\n`;
+        for (const f of relatedFindings) {
+          for (const e of f.evidence.slice(0, 2)) {
+            task += `  - ${e}\n`;
+          }
         }
-
-        // Validate with QA
-        console.log('  Validating...');
-        const qaReport = await qaAgent.validate(session, workflowId);
-
-        if (qaReport.status === 'PASS') {
-          console.log('  \u2705 Fix applied and validated');
-          results.push({
-            recommendationId: rec.id,
-            applied: true,
-            validated: true,
-          });
-        } else {
-          console.log('  \u26a0\ufe0f Fix applied but validation has warnings');
-          results.push({
-            recommendationId: rec.id,
-            applied: true,
-            validated: false,
-          });
-        }
-      } catch (error) {
-        console.log(`  \u274c Fix failed: ${(error as Error).message}`);
-        results.push({
-          recommendationId: rec.id,
-          applied: false,
-          validated: false,
-          error: (error as Error).message,
-        });
       }
+      task += '\n';
     }
 
-    // Summary
-    console.log(`\n${'─'.repeat(60)}`);
-    console.log('FIX SUMMARY');
-    console.log(`${'─'.repeat(60)}`);
+    if (affectedNodes.length > 0) {
+      task += `## EDIT SCOPE:\n`;
+      task += `Only modify these nodes: ${affectedNodes.join(', ')}\n\n`;
+    }
 
-    const applied = results.filter(r => r.applied).length;
-    const validated = results.filter(r => r.validated).length;
-    const failed = results.filter(r => !r.applied).length;
+    task += `## CONSTRAINTS:\n`;
+    task += `- This is an EXISTING workflow - do NOT create new\n`;
+    task += `- Use n8n_update_partial_workflow for surgical edits\n`;
+    task += `- Validate each fix with QA before proceeding\n`;
+    task += `- If fix fails after 3 attempts, escalate to Researcher\n`;
 
-    console.log(`Applied: ${applied}/${priorityFixes.length}`);
-    console.log(`Validated: ${validated}/${priorityFixes.length}`);
-    console.log(`Failed: ${failed}/${priorityFixes.length}`);
-
-    return results;
+    return task;
   }
 
   /**

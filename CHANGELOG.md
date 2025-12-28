@@ -50,7 +50,7 @@ npm run dev:analyze -- <workflowId>                # Dev mode
 
 **Interactive Approval Flow**
 After analysis, user can choose:
-- `[A] Auto-fix` - Apply P0/P1 fixes via Builder agent
+- `[A] Auto-fix` - Apply P0/P1 fixes via FULL 5-agent system with 6 gates
 - `[M] Manual` - Show step-by-step instructions
 - `[S] Save` - Save report and exit
 - `[Q] Quit` - Exit without saving
@@ -95,6 +95,18 @@ Summary:
   • Recommendations: 4
   • Q&A exchanges: 2
 ```
+
+### Documentation Updates
+
+**README.md**
+- Added interactive approval flow documentation
+- Added `--no-interactive` flag description
+- Added auto-fix workflow examples
+
+**.claude/CLAUDE.md**
+- Added "SDK Agent System (ALWAYS USE)" section
+- Intent detection rules for automatic SDK invocation
+- Auto-fix flow instructions for Claude
 
 ### Technical Details
 
@@ -360,7 +372,7 @@ The ClaudeN8N SDK is a complete migration from the Task() workaround system to n
 
 ## Future Roadmap
 
-### [1.1.0] - Planned
+### [1.2.0] - Planned
 
 - [ ] Legacy `run_state.json` compatibility layer
 - [ ] Additional agent unit tests (Architect, Researcher, Builder, QA, Analyst)
@@ -369,7 +381,7 @@ The ClaudeN8N SDK is a complete migration from the Task() workaround system to n
 - [ ] Token usage optimization
 - [ ] Streaming responses support
 
-### [1.2.0] - Planned
+### [1.3.0] - Planned
 
 - [ ] Web UI for interactive mode
 - [ ] Workflow versioning and rollback
@@ -377,7 +389,7 @@ The ClaudeN8N SDK is a complete migration from the Task() workaround system to n
 - [ ] Agent performance analytics
 - [ ] Custom skill creation guide
 
-### [2.0.0] - Future
+### [2.0.0] - Planned
 
 - [ ] Plugin system for custom agents
 - [ ] Distributed session management

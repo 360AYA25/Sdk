@@ -26,9 +26,10 @@ function validateEnv(): void {
 }
 
 // Parse command line arguments
-function parseArgs(): { mode: 'create' | 'analyze'; args: string[]; interactive: boolean } {
+function parseArgs(): { mode: 'create' | 'analyze'; args: string[]; interactive: boolean; autoFix: boolean } {
   const args = process.argv.slice(2);
   let interactive = true;
+  let autoFix = false;
 
   // Check for --no-interactive flag
   const noInteractiveIndex = args.indexOf('--no-interactive');
@@ -37,27 +38,34 @@ function parseArgs(): { mode: 'create' | 'analyze'; args: string[]; interactive:
     args.splice(noInteractiveIndex, 1);
   }
 
+  // Check for --auto-fix flag (runs auto-fix without prompts)
+  const autoFixIndex = args.indexOf('--auto-fix');
+  if (autoFixIndex >= 0) {
+    autoFix = true;
+    args.splice(autoFixIndex, 1);
+  }
+
   // Check for --mode flag
   const modeIndex = args.indexOf('--mode');
   if (modeIndex >= 0 && args[modeIndex + 1]) {
     const mode = args[modeIndex + 1] as 'create' | 'analyze';
     const filteredArgs = args.filter((_, i) => i !== modeIndex && i !== modeIndex + 1);
-    return { mode, args: filteredArgs, interactive };
+    return { mode, args: filteredArgs, interactive, autoFix };
   }
 
   // Check for analyze keyword (for npm run analyze)
   if (args[0] === 'analyze') {
-    return { mode: 'analyze', args: args.slice(1), interactive };
+    return { mode: 'analyze', args: args.slice(1), interactive, autoFix };
   }
 
-  return { mode: 'create', args, interactive };
+  return { mode: 'create', args, interactive, autoFix };
 }
 
 // Main entry point
 async function main(): Promise<void> {
   validateEnv();
 
-  const { mode, args, interactive } = parseArgs();
+  const { mode, args, interactive, autoFix } = parseArgs();
 
   if (mode === 'analyze') {
     // ========== ANALYZE MODE ==========
@@ -73,13 +81,16 @@ async function main(): Promise<void> {
       console.log('  npm run analyze -- <workflowId>');
       console.log('  npm run analyze -- <workflowId> <projectPath>');
       console.log('  npm run analyze -- <workflowId> --no-interactive');
+      console.log('  npm run analyze -- <workflowId> --auto-fix');
       console.log('');
       console.log('Options:');
       console.log('  --no-interactive    Skip approval flow, just generate report');
+      console.log('  --auto-fix          Run analysis then auto-fix P0/P1 issues (no prompts)');
       console.log('');
       console.log('Examples:');
       console.log('  npm run analyze -- sw3Qs3Fe3JahEbbW');
       console.log('  npm run analyze -- sw3Qs3Fe3JahEbbW /path/to/project');
+      console.log('  npm run analyze -- sw3Qs3Fe3JahEbbW --auto-fix');
       process.exit(1);
     }
 
@@ -88,12 +99,21 @@ async function main(): Promise<void> {
       console.log(`[ANALYZE] Project: ${projectPath}`);
     }
     console.log(`[ANALYZE] Interactive: ${interactive}`);
+    console.log(`[ANALYZE] Auto-fix: ${autoFix}`);
     console.log('');
 
-    // Use analyzeWithApproval for interactive mode, analyze for non-interactive
-    const result = interactive
-      ? await analyzerOrchestrator.analyzeWithApproval(workflowId, projectPath)
-      : await analyzerOrchestrator.analyze(workflowId, projectPath);
+    // Determine which mode to use
+    let result;
+    if (autoFix) {
+      // Auto-fix mode: analyze then fix without prompts
+      result = await analyzerOrchestrator.analyzeAndFix(workflowId, projectPath);
+    } else if (interactive) {
+      // Interactive mode with approval flow
+      result = await analyzerOrchestrator.analyzeWithApproval(workflowId, projectPath);
+    } else {
+      // Non-interactive: just generate report
+      result = await analyzerOrchestrator.analyze(workflowId, projectPath);
+    }
 
     if (result.success) {
       console.log('\nAnalysis completed successfully');

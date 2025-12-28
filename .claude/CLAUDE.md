@@ -34,6 +34,58 @@ User → Orchestrator → Architect → Researcher → Builder → QA → Analys
 4. QA validates (Phase 5 = execute + test)
 5. If errors: cycle 1-3 Builder, 4-5 Researcher, 6-7 Deep dive, 8+ Analyst
 
+## SDK Agent System (ALWAYS USE)
+
+**CRITICAL:** Для ЛЮБЫХ задач с n8n workflows используй SDK агентов, НЕ делай вручную!
+
+### Когда запускать SDK:
+
+| Задача | Команда |
+|--------|---------|
+| Создать workflow | `npm start -- "описание"` |
+| Анализ workflow | `npm run analyze -- <workflowId>` |
+| Анализ + авто-фикс | `npm run analyze -- <workflowId>` → выбрать `[A]` |
+| Dev режим | `npm run dev -- "описание"` |
+
+### Auto-Fix Flow:
+
+После анализа, если найдены баги:
+```
+npm run analyze -- sw3Qs3Fe3JahEbbW
+# Анализ завершён, показывает меню:
+# [A] Apply fixes automatically ← ВЫБРАТЬ ЭТО
+# Запускает ПОЛНУЮ 5-агентную систему:
+# Architect → Researcher → Builder → QA → Analyst
+# Все 6 gates активны (как при CREATE mode)
+```
+
+### Детекция Intent:
+
+Автоматически запускай SDK при словах:
+- "создай workflow", "сделай бота", "нужен воркфлоу"
+- "проанализируй", "найди баги", "что не так с workflow"
+- "исправь", "пофикси", "доработай workflow"
+- Любой workflowId (формат: `[a-zA-Z0-9]{16}`)
+
+### Пример:
+
+```
+User: "Проанализируй workflow sw3Qs3Fe3JahEbbW и исправь баги"
+
+Claude:
+1. npm run analyze -- sw3Qs3Fe3JahEbbW
+2. После анализа выбирает [A] Auto-fix
+3. Builder применяет фиксы
+4. Показывает результат
+```
+
+**НИКОГДА:**
+- Не редактируй workflow JSON вручную
+- Не пиши код для n8n без SDK
+- Не анализируй workflow глазами (используй Researcher agent)
+
+---
+
 ## Workflow Mode (Auto-Start)
 
 **IMPORTANT:** When user opens this project, automatically activate workflow mode:
