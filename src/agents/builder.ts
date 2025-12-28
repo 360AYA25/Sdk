@@ -198,15 +198,7 @@ Return JSON:
         }
       );
 
-      // Log fix attempt for GATE 4
       const buildResult = result.data as BuildResult;
-      await sessionManager.logFixAttempt(session.id, {
-        cycle: session.cycle,
-        approach: errorDetails,
-        result: buildResult?.verification?.expected_changes_applied ? 'success' : 'failed',
-        nodesAffected: editScope,
-      });
-
       return buildResult;
     } finally {
       // Restore CREATE mode prompt

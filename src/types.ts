@@ -64,6 +64,7 @@ export interface FixAttempt {
   result: 'success' | 'failed';
   errorType?: string;
   nodesAffected: string[];
+  qaErrors?: ValidationError[]; // QA errors from this attempt
   timestamp: Date;
 }
 

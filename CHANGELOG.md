@@ -57,6 +57,34 @@ Level up SDK Agent System for production-ready auto-fix capability based on Anth
 - `src/agents/qa.ts` - Added status validation in parseQAReport
 - `src/orchestrators/analyze/fix-orchestrator.ts` - Accept SOFT_PASS
 
+### ✨ Phase 3: Learning Loop (COMPLETED)
+
+**Problem**: Attempts 1, 2, 3 repeat same mistakes - no feedback from QA to Builder
+
+**Solution**: Feed QA errors into ALREADY_TRIED for next retry
+- Modified `FixAttempt` type to include `qaErrors` field
+- Updated `formatAlreadyTried()` to show QA validation errors from previous attempts
+- Moved `logFixAttempt()` from Builder to FixOrchestrator (after QA validation)
+- Builder now sees QA errors via ALREADY_TRIED section
+
+**How it works**:
+```
+Attempt 1: Builder fixes → QA validates → logs errors
+Attempt 2: Builder sees attempt 1 QA errors → avoids same mistake
+Attempt 3: Builder sees attempts 1-2 QA errors → learns from history
+```
+
+**Expected Improvement**:
+- Success rate: 60% → 85%+
+- Fewer retries needed (learns from mistakes)
+- Better error resolution
+
+**Files Modified**:
+- `src/types.ts` - Added `qaErrors` to FixAttempt interface
+- `src/orchestrator/session-manager.ts` - Enhanced formatAlreadyTried()
+- `src/orchestrators/analyze/fix-orchestrator.ts` - Log QA errors after validation
+- `src/agents/builder.ts` - Removed logFixAttempt (moved to orchestrator)
+
 ### 📊 Baseline Metrics (Before Improvements)
 
 From analysis run on FoodTracker workflow:

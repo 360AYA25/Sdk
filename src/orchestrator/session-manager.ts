@@ -191,12 +191,27 @@ export class SessionManager {
     let section = '## ALREADY TRIED (DO NOT REPEAT!)\n\n';
 
     for (const attempt of attempts) {
-      section += `### Cycle ${attempt.cycle}: ${attempt.approach}\n`;
+      section += `### Attempt ${attempt.cycle}: ${attempt.approach}\n`;
       section += `- Result: ${attempt.result}\n`;
       if (attempt.errorType) {
         section += `- Error: ${attempt.errorType}\n`;
       }
-      section += `- Nodes: ${attempt.nodesAffected.join(', ')}\n\n`;
+      section += `- Nodes: ${attempt.nodesAffected.join(', ')}\n`;
+
+      // Include QA errors from this attempt (Phase 3: Learning Loop)
+      if (attempt.qaErrors && attempt.qaErrors.length > 0) {
+        section += `- QA Validation Errors:\n`;
+        for (const error of attempt.qaErrors.slice(0, 3)) {
+          section += `  • ${error.code}: ${error.message}`;
+          if (error.node) section += ` (${error.node})`;
+          section += `\n`;
+        }
+        if (attempt.qaErrors.length > 3) {
+          section += `  • ... and ${attempt.qaErrors.length - 3} more\n`;
+        }
+      }
+
+      section += `\n`;
     }
 
     return section;

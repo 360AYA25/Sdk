@@ -118,6 +118,15 @@ export class FixOrchestrator {
         console.log('QA: Validating fix...');
         const qaReport = await qaAgent.validate(session, workflowId);
 
+        // Log fix attempt with QA errors (Phase 3: Learning Loop)
+        await sessionManager.logFixAttempt(session.id, {
+          cycle: attempts,
+          approach: fixTask,
+          result: (qaReport.status === 'PASS' || qaReport.status === 'SOFT_PASS') ? 'success' : 'failed',
+          nodesAffected: affectedNodes,
+          qaErrors: qaReport.errors,
+        });
+
         if (qaReport.status === 'PASS' || qaReport.status === 'SOFT_PASS') {
           return {
             recommendationId: fix.id,
