@@ -181,31 +181,31 @@ Return JSON:
     // Inject ALREADY_TRIED for GATE 4
     const alreadyTried = await sessionManager.formatAlreadyTried(session.id);
 
+    // Use simplified FIX prompt (see builder-fix.md)
     const result = await this.invoke(
       session,
-      `Fix workflow ${workflowId}`,
+      `Apply surgical fix to workflow ${workflowId}`,
       {
         workflowId,
         editScope,
         errorDetails,
         alreadyTried: alreadyTried || undefined,
-        instruction: `Fix using SURGICAL EDITS only:
+        fixMode: true, // Signals to use FIX mindset
+        instruction: `SURGICAL FIX TASK:
 
-## edit_scope (ONLY touch these nodes):
-${editScope.map(n => `- ${n}`).join('\n')}
+Node(s): ${editScope.join(', ')}
+Fix: ${errorDetails}
 
-## Error to fix:
-${errorDetails}
+${alreadyTried ? `⚠️ ALREADY TRIED:\n${alreadyTried}\n` : ''}
+STEPS (follow exactly):
+1. n8n_get_workflow(${workflowId}, mode='structure')
+2. n8n_update_partial_workflow (ONE operation)
+3. n8n_validate_workflow
+4. Return BuildResult JSON
 
-${alreadyTried ? `## ALREADY TRIED (DO NOT REPEAT!):\n${alreadyTried}` : ''}
-
-## Rules:
-1. Use n8n_update_partial_workflow ONLY
-2. Only modify nodes in edit_scope
-3. Take snapshot before destructive changes
-4. Verify with n8n_get_workflow after
-
-Return JSON with verification.`,
+TIME LIMIT: 2 minutes
+MCP LIMIT: 3-5 calls
+NO exploration (Grep/Read/Bash) - just fix!`,
       }
     );
 
