@@ -16,6 +16,7 @@ import type {
   SessionContext,
 } from '../../types.js';
 import { orchestrator } from '../../orchestrator/index.js';
+import { fixOrchestrator } from './fix-orchestrator.js';
 
 export type UserChoice = 'auto-fix' | 'manual' | 'save' | 'quit';
 
@@ -136,26 +137,39 @@ export class ApprovalFlow {
       }));
     }
 
-    console.log('\nStarting 5-agent system...\n');
+    console.log('\nStarting Fix Orchestrator (incremental mode)...\n');
 
     try {
-      // Run full orchestrator with the fix task
-      const result = await orchestrator.start(taskDescription);
+      // Run fix orchestrator with incremental fixes
+      const results = await fixOrchestrator.applyFixes(
+        workflowId,
+        report,
+        priorityFixes
+      );
 
       console.log('\n' + '═'.repeat(60));
-      console.log('ORCHESTRATOR RESULT:');
+      console.log('FIX ORCHESTRATOR RESULT:');
       console.log('═'.repeat(60));
-      console.log(result);
 
-      // All fixes attempted through full system
-      return priorityFixes.map(rec => ({
-        recommendationId: rec.id,
-        applied: true,
-        validated: true,
-      }));
+      const appliedCount = results.filter(r => r.applied).length;
+      const validatedCount = results.filter(r => r.validated).length;
+
+      console.log(`✓ Applied: ${appliedCount}/${results.length}`);
+      console.log(`✓ Validated: ${validatedCount}/${results.length}`);
+
+      const failedResults = results.filter(r => !r.applied);
+      if (failedResults.length > 0) {
+        console.log(`\n✗ Failed:`);
+        for (const r of failedResults) {
+          const rec = priorityFixes.find(f => f.id === r.recommendationId);
+          console.log(`  - ${rec?.priority}: ${rec?.title} (${r.error})`);
+        }
+      }
+
+      return results;
 
     } catch (error) {
-      console.error('\nOrchestrator failed:', (error as Error).message);
+      console.error('\nFix Orchestrator failed:', (error as Error).message);
       return priorityFixes.map(rec => ({
         recommendationId: rec.id,
         applied: false,
@@ -181,8 +195,10 @@ export class ApprovalFlow {
       findings.flatMap(f => f.affectedNodes || [])
     )];
 
-    let task = `FIX EXISTING WORKFLOW: ${workflowId}\n\n`;
-    task += `Workflow: ${report.summary.workflowName}\n`;
+    let task = `MODERNIZE EXISTING WORKFLOW\n\n`;
+    task += `## TARGET WORKFLOW:\n`;
+    task += `workflow_name: "${report.summary.workflowName}"\n`;
+    task += `workflow_id: ${workflowId}\n`;
     task += `Issues found: ${report.summary.totalIssues}\n`;
     task += `Critical: ${report.summary.criticalIssues}\n\n`;
 
@@ -214,10 +230,11 @@ export class ApprovalFlow {
     }
 
     task += `## CONSTRAINTS:\n`;
-    task += `- This is an EXISTING workflow - do NOT create new\n`;
-    task += `- Use n8n_update_partial_workflow for surgical edits\n`;
-    task += `- Validate each fix with QA before proceeding\n`;
-    task += `- If fix fails after 3 attempts, escalate to Researcher\n`;
+    task += `- IMPORTANT: Workflow already exists with ID ${workflowId}\n`;
+    task += `- Use n8n_update_partial_workflow with surgical updateNode operations\n`;
+    task += `- Do NOT use n8n_create_workflow - workflow already exists\n`;
+    task += `- Validate each fix with QA before proceeding to next\n`;
+    task += `- If fix fails validation 3 times, escalate to Researcher for alternative approach\n`;
 
     return task;
   }
@@ -252,24 +269,39 @@ export class ApprovalFlow {
     console.log(taskDescription.slice(0, 500) + (taskDescription.length > 500 ? '...' : ''));
     console.log('─'.repeat(40));
 
-    console.log('\nStarting 5-agent system...\n');
+    console.log('\nStarting Fix Orchestrator (incremental mode)...\n');
 
     try {
-      const result = await orchestrator.start(taskDescription);
+      // Run fix orchestrator with incremental fixes
+      const results = await fixOrchestrator.applyFixes(
+        workflowId,
+        report,
+        priorityFixes
+      );
 
       console.log('\n' + '═'.repeat(60));
-      console.log('ORCHESTRATOR RESULT:');
+      console.log('FIX ORCHESTRATOR RESULT:');
       console.log('═'.repeat(60));
-      console.log(result);
 
-      return priorityFixes.map(rec => ({
-        recommendationId: rec.id,
-        applied: true,
-        validated: true,
-      }));
+      const appliedCount = results.filter(r => r.applied).length;
+      const validatedCount = results.filter(r => r.validated).length;
+
+      console.log(`✓ Applied: ${appliedCount}/${results.length}`);
+      console.log(`✓ Validated: ${validatedCount}/${results.length}`);
+
+      const failedResults = results.filter(r => !r.applied);
+      if (failedResults.length > 0) {
+        console.log(`\n✗ Failed:`);
+        for (const r of failedResults) {
+          const rec = priorityFixes.find(f => f.id === r.recommendationId);
+          console.log(`  - ${rec?.priority}: ${rec?.title} (${r.error})`);
+        }
+      }
+
+      return results;
 
     } catch (error) {
-      console.error('\nOrchestrator failed:', (error as Error).message);
+      console.error('\nFix Orchestrator failed:', (error as Error).message);
       return priorityFixes.map(rec => ({
         recommendationId: rec.id,
         applied: false,

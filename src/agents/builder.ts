@@ -210,14 +210,15 @@ Return JSON with verification.`,
     );
 
     // Log fix attempt for GATE 4
+    const buildResult = result.data as BuildResult;
     await sessionManager.logFixAttempt(session.id, {
       cycle: session.cycle,
       approach: errorDetails,
-      result: (result.data as BuildResult).verification.expected_changes_applied ? 'success' : 'failed',
+      result: buildResult?.verification?.expected_changes_applied ? 'success' : 'failed',
       nodesAffected: editScope,
     });
 
-    return result.data as BuildResult;
+    return buildResult;
   }
 
   /**

@@ -177,8 +177,8 @@ ${skills}
     const baseTimeout = 90000; // 90 seconds
     const complexWorkflow = nodeCount >= 10;
 
-    // All agents get 5 minutes - MCP calls and complex operations need time
-    const TIMEOUT_MS = 300000;
+    // Builder needs more time for multi-fix tasks (10 min), others get 5 min
+    const TIMEOUT_MS = this.role === 'builder' ? 600000 : 300000;
 
     const timeoutPromise = new Promise<AgentResult>((_, reject) => {
       setTimeout(() => {
