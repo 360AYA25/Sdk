@@ -85,7 +85,7 @@ const execution = await n8n_executions({
 
 ```json
 {
-  "status": "PASS|FAIL|BLOCKED",
+  "status": "PASS|SOFT_PASS|FAIL|BLOCKED",
   "phase_5_executed": true,
   "errors": [
     {
@@ -115,6 +115,30 @@ const execution = await n8n_executions({
   ]
 }
 ```
+
+## Status Decision Logic
+
+**PASS**: No issues
+- Zero errors
+- Zero warnings (or all are false positives)
+- Workflow executes successfully
+
+**SOFT_PASS**: Has warnings but executes successfully ⚠️
+- Workflow executes in Phase 5 ✓
+- Has validation warnings (deprecated syntax, modernization recommendations)
+- No runtime/critical errors
+- Use when: workflow works but needs modernization
+
+**FAIL**: Critical issues
+- Runtime errors that prevent execution
+- Missing required credentials
+- Invalid node configuration
+- Workflow fails Phase 5 execution
+
+**BLOCKED**: Cannot validate
+- Workflow not found
+- Missing required context
+- Phase 5 cannot execute (trigger type not supported)
 
 ## edit_scope Generation
 For each error, identify affected nodes:

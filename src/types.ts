@@ -126,7 +126,7 @@ export interface BlueprintResult {
 }
 
 export interface QAReport {
-  status: 'PASS' | 'FAIL' | 'BLOCKED';
+  status: 'PASS' | 'SOFT_PASS' | 'FAIL' | 'BLOCKED';
   phase_5_executed: boolean;
   errors: ValidationError[];
   warnings: ValidationWarning[];

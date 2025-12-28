@@ -118,7 +118,7 @@ export class FixOrchestrator {
         console.log('QA: Validating fix...');
         const qaReport = await qaAgent.validate(session, workflowId);
 
-        if (qaReport.status === 'PASS') {
+        if (qaReport.status === 'PASS' || qaReport.status === 'SOFT_PASS') {
           return {
             recommendationId: fix.id,
             applied: true,

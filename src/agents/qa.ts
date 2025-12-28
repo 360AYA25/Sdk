@@ -64,7 +64,12 @@ export class QAAgent extends BaseAgent {
     const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/);
     if (jsonMatch) {
       try {
-        return JSON.parse(jsonMatch[1]) as QAReport;
+        const report = JSON.parse(jsonMatch[1]) as QAReport;
+        // Validate status is correct type
+        if (!['PASS', 'SOFT_PASS', 'FAIL', 'BLOCKED'].includes(report.status)) {
+          report.status = 'FAIL';
+        }
+        return report;
       } catch {
         // Fall through
       }

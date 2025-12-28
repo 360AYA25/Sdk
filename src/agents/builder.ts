@@ -178,47 +178,41 @@ Return JSON:
     editScope: string[],
     errorDetails: string
   ): Promise<BuildResult> {
-    // Inject ALREADY_TRIED for GATE 4
-    const alreadyTried = await sessionManager.formatAlreadyTried(session.id);
+    // Switch to FIX mode prompt
+    const originalPrompt = this.config.promptFile;
+    this.config.promptFile = 'builder-fix.md';
+    await this.loadInstructions();
 
-    // Use simplified FIX prompt (see builder-fix.md)
-    const result = await this.invoke(
-      session,
-      `Apply surgical fix to workflow ${workflowId}`,
-      {
-        workflowId,
-        editScope,
-        errorDetails,
-        alreadyTried: alreadyTried || undefined,
-        fixMode: true, // Signals to use FIX mindset
-        instruction: `SURGICAL FIX TASK:
+    try {
+      // Inject ALREADY_TRIED for GATE 4
+      const alreadyTried = await sessionManager.formatAlreadyTried(session.id);
 
-Node(s): ${editScope.join(', ')}
-Fix: ${errorDetails}
+      const result = await this.invoke(
+        session,
+        `Fix workflow ${workflowId}: ${errorDetails}`,
+        {
+          workflowId,
+          editScope,
+          errorDetails,
+          alreadyTried: alreadyTried || undefined,
+        }
+      );
 
-${alreadyTried ? `⚠️ ALREADY TRIED:\n${alreadyTried}\n` : ''}
-STEPS (follow exactly):
-1. n8n_get_workflow(${workflowId}, mode='structure')
-2. n8n_update_partial_workflow (ONE operation)
-3. n8n_validate_workflow
-4. Return BuildResult JSON
+      // Log fix attempt for GATE 4
+      const buildResult = result.data as BuildResult;
+      await sessionManager.logFixAttempt(session.id, {
+        cycle: session.cycle,
+        approach: errorDetails,
+        result: buildResult?.verification?.expected_changes_applied ? 'success' : 'failed',
+        nodesAffected: editScope,
+      });
 
-TIME LIMIT: 2 minutes
-MCP LIMIT: 3-5 calls
-NO exploration (Grep/Read/Bash) - just fix!`,
-      }
-    );
-
-    // Log fix attempt for GATE 4
-    const buildResult = result.data as BuildResult;
-    await sessionManager.logFixAttempt(session.id, {
-      cycle: session.cycle,
-      approach: errorDetails,
-      result: buildResult?.verification?.expected_changes_applied ? 'success' : 'failed',
-      nodesAffected: editScope,
-    });
-
-    return buildResult;
+      return buildResult;
+    } finally {
+      // Restore CREATE mode prompt
+      this.config.promptFile = originalPrompt;
+      await this.loadInstructions();
+    }
   }
 
   /**
