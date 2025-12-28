@@ -54,13 +54,13 @@ export class ApprovalFlow {
     console.log(`Report: ${this.reportPath}`);
     console.log('');
 
-    const p0p1Count = report.recommendations.filter(
-      r => r.priority === 'P0' || r.priority === 'P1'
+    const priorityCount = report.recommendations.filter(
+      r => r.priority === 'P0' || r.priority === 'P1' || r.priority === 'P2'
     ).length;
 
     console.log('What would you like to do?');
     console.log('');
-    console.log(`[A] Apply fixes automatically (${p0p1Count} issues - FULL 5-agent system)`);
+    console.log(`[A] Apply fixes automatically (${priorityCount} P0/P1/P2 issues - FULL 5-agent system)`);
     console.log('[M] Review and apply manually (show detailed instructions)');
     console.log('[S] Save report and exit');
     console.log('[Q] Quit without saving');
@@ -101,9 +101,9 @@ export class ApprovalFlow {
     workflowId: string,
     _session: SessionContext
   ): Promise<FixResult[]> {
-    // Filter P0 and P1 recommendations
+    // Filter P0, P1, and P2 recommendations
     const priorityFixes = report.recommendations.filter(
-      r => r.priority === 'P0' || r.priority === 'P1'
+      r => r.priority === 'P0' || r.priority === 'P1' || r.priority === 'P2'
     );
 
     if (priorityFixes.length === 0) {
@@ -220,6 +220,63 @@ export class ApprovalFlow {
     task += `- If fix fails after 3 attempts, escalate to Researcher\n`;
 
     return task;
+  }
+
+  /**
+   * Run auto-fix mode WITHOUT prompts (for --auto-fix flag)
+   * Uses FULL 5-agent system
+   */
+  async runAutoFixNoPrompts(
+    report: AnalysisReport,
+    workflowId: string,
+    _session: SessionContext
+  ): Promise<FixResult[]> {
+    const priorityFixes = report.recommendations.filter(
+      r => r.priority === 'P0' || r.priority === 'P1' || r.priority === 'P2'
+    );
+
+    if (priorityFixes.length === 0) {
+      console.log('\nNo priority fixes to apply.');
+      return [];
+    }
+
+    console.log(`\n${'═'.repeat(60)}`);
+    console.log('FULL AGENT SYSTEM - AUTO-FIX MODE (no prompts)');
+    console.log('Architect → Researcher → Builder → QA → Analyst');
+    console.log(`${'═'.repeat(60)}`);
+
+    const taskDescription = this.buildFixTask(report, workflowId, priorityFixes);
+
+    console.log('\nTask generated from analysis:');
+    console.log('─'.repeat(40));
+    console.log(taskDescription.slice(0, 500) + (taskDescription.length > 500 ? '...' : ''));
+    console.log('─'.repeat(40));
+
+    console.log('\nStarting 5-agent system...\n');
+
+    try {
+      const result = await orchestrator.start(taskDescription);
+
+      console.log('\n' + '═'.repeat(60));
+      console.log('ORCHESTRATOR RESULT:');
+      console.log('═'.repeat(60));
+      console.log(result);
+
+      return priorityFixes.map(rec => ({
+        recommendationId: rec.id,
+        applied: true,
+        validated: true,
+      }));
+
+    } catch (error) {
+      console.error('\nOrchestrator failed:', (error as Error).message);
+      return priorityFixes.map(rec => ({
+        recommendationId: rec.id,
+        applied: false,
+        validated: false,
+        error: (error as Error).message,
+      }));
+    }
   }
 
   /**

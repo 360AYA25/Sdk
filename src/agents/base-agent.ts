@@ -177,15 +177,8 @@ ${skills}
     const baseTimeout = 90000; // 90 seconds
     const complexWorkflow = nodeCount >= 10;
 
-    let TIMEOUT_MS = baseTimeout;
-    // ANALYZE mode gets longer timeouts for all agents (reading files, research)
-    if (this.mode === 'analyze') {
-      TIMEOUT_MS = 300000; // 5 minutes for analysis
-    } else if (this.role === 'researcher' && complexWorkflow) {
-      TIMEOUT_MS = 180000; // 3 minutes for complex research
-    } else if (this.role === 'builder' && complexWorkflow) {
-      TIMEOUT_MS = 180000; // 3 minutes for complex builds
-    }
+    // All agents get 5 minutes - MCP calls and complex operations need time
+    const TIMEOUT_MS = 300000;
 
     const timeoutPromise = new Promise<AgentResult>((_, reject) => {
       setTimeout(() => {

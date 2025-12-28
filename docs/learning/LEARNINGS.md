@@ -8366,3 +8366,65 @@ if (missingFields.length > 0) {
 When sessions are blocked at cycle 0 with workflow_id='unknown', this indicates a pre-flight failure before any agents could begin work. Common causes: (1) User request too vague to determine workflow type, (2) Missing critical requirements that prevent scope determination, (3) System-level issues preventing session initialization, (4) User request outside n8n workflow domain. Prevention: Implement better requirement clarification at session start.
 
 ---
+
+### L-117: External Service Dependency Resilience
+
+**Category:** building
+**Severity:** critical
+**Added:** 2025-12-27
+
+When workflows depend on external HTTP services, implement proper error handling and retry logic. The 'Bot Test Automation' workflow failed 20+ times due to external Telethon service asyncio loop issues without graceful degradation. Recommendation: Add HTTP Request node error handling with 'Continue on Error' + retry logic, implement service health checks, and provide fallback responses when external dependencies fail.
+
+---
+
+### L-118: Production Workflow Monitoring Required
+
+**Category:** validation
+**Severity:** important
+**Added:** 2025-12-27
+
+Active production workflows need monitoring and alerting for failure patterns. The 'Bot Test Automation' workflow had 20+ consecutive failures over 90 minutes without intervention. Pattern: webhook executions all failing at 'Send via Telethon' node with same error. Recommendation: Implement workflow execution monitoring, set up alerts for consecutive failures (>3), and create circuit breaker patterns for external service calls.
+
+---
+
+### L-119: External API Dependency Validation Required
+
+**Category:** building
+**Severity:** important
+**Added:** 2025-12-28
+
+When workflows depend on external APIs, implement pre-execution health checks and graceful failure handling. The Bot Test Automation workflow fails when the external bot response API (http://72.60.28.252:5001/get_last_message) returns 405 Method Not Allowed, but the workflow has no fallback mechanism. Solution: Add HTTP health check node before main execution, implement retry with exponential backoff, and provide alternative response paths when external dependencies fail.
+
+---
+
+### L-120: HTTP Method Mismatch Error Pattern
+
+**Category:** validation
+**Severity:** critical
+**Added:** 2025-12-28
+
+405 Method Not Allowed errors indicate HTTP method mismatch between workflow configuration and API requirements. In this case, GET request to /get_last_message endpoint is rejected. Investigation needed: 1) Verify API documentation for correct method (POST vs GET), 2) Check if endpoint requires authentication, 3) Confirm endpoint still exists. Common fix: Change HTTP Request node method or update endpoint URL.
+
+---
+
+### L-121: HTTP Method Verification for External APIs
+
+**Category:** building
+**Severity:** important
+**Added:** 2025-12-28
+
+**Problem**: Workflow configured with wrong HTTP methods for external API endpoints causing 405 errors.
+
+**Root Cause**: External API endpoints changed requirements or workflow was configured incorrectly.
+
+**Solution**: 
+1. Always verify API documentation before configuring HTTP Request nodes
+2. Test API endpoints independently before workflow integration
+3. Use proper HTTP methods (POST vs GET) based on API requirements
+4. Add error handling for HTTP method mismatches
+
+**Prevention**: Include API method verification in validation checklist
+
+**Evidence**: Bot Test Automation workflow failing on /send_telegram and /get_last_message endpoints
+
+---

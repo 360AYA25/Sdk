@@ -49,6 +49,39 @@ Before invoking Builder:
 
 ## Known Issues
 
+## HTTP Request Node Configuration Issues
+
+**Issue**: 405 Method Not Allowed errors in production workflows
+**Cause**: HTTP method mismatch between n8n configuration and external API requirements
+**Impact**: Runtime workflow failures, disrupted automation
+**Fix**: Verify API documentation and test endpoints before deployment
+**Prevention**: Add HTTP method validation to pre-deployment checklist
+
+
+
+### External API Dependencies
+
+**Issue**: Workflows with external API dependencies can fail when those APIs change or become unavailable.
+
+**Symptoms**: 
+- 405 Method Not Allowed errors
+- Connection timeouts to external services
+- Workflow executes successfully until external API call
+
+**Mitigation**:
+- Implement API health checks before main workflow execution
+- Add error handling for external API failures
+- Use retry mechanisms with exponential backoff
+- Document external API dependencies and monitor their status
+
+**Example**: Bot Test Automation workflow failing on http://72.60.28.252:5001/get_last_message endpoint
+
+
+
+External HTTP service dependencies can cause workflow execution cascades. Monitor for patterns like '20+ consecutive failures with same error' which indicate service-level issues rather than workflow logic problems. The asyncio event loop error in Telethon services requires service restart, not workflow changes.
+
+
+
 **Hardcoded Validation Anti-Pattern**: Code nodes with hardcoded field validation (like checking for specific field names) frequently fail when webhook payloads have different structures. Always examine actual payload structure before implementing validation logic. This caused workflow SgHwhcgcr3bOFIdI to fail with 12+ failed executions.
 
 ## Testing Requirements
@@ -58,3 +91,7 @@ Before invoking Builder:
 ## Session Management
 
 Pre-flight Failures (Cycle 0 Blocks): When sessions block at cycle 0, investigate: user requirement clarity, scope determination capability, system health, and domain appropriateness. These failures waste fewer tokens but indicate process issues at the requirement gathering stage.
+
+## Error Patterns
+
+HTTP Request node failures with 500 errors and 'asyncio event loop must not change' indicate external service configuration issues. These require infrastructure fixes, not workflow modifications. Implement proper error handling with 'Continue on Error' option and retry mechanisms.

@@ -318,6 +318,54 @@ export class AnalyzerOrchestrator {
   }
 
   /**
+   * Analyze and auto-fix without prompts
+   * Uses Builder + QA agents to fix P0/P1 issues
+   */
+  async analyzeAndFix(
+    workflowId: string,
+    projectPath?: string
+  ): Promise<AnalysisResult> {
+    // Run standard analysis first
+    const result = await this.analyze(workflowId, projectPath);
+
+    if (!result.success || !result.report || !result.outputPath) {
+      return result;
+    }
+
+    // Create approval flow for auto-fix
+    const approvalFlow = new ApprovalFlow(result.outputPath);
+
+    try {
+      // Create session for fixing
+      const session: SessionContext = {
+        id: result.analysisId,
+        workflowId,
+        stage: 'build',
+        cycle: 0,
+        startedAt: new Date(),
+        lastUpdatedAt: new Date(),
+        history: [],
+        fixAttempts: [],
+        mcpCalls: [],
+        agentResults: new Map(),
+      };
+
+      // Run auto-fix without prompts
+      const fixResults = await approvalFlow.runAutoFixNoPrompts(
+        result.report,
+        workflowId,
+        session
+      );
+
+      console.log(`\n${fixResults.filter(r => r.applied).length} fixes applied`);
+    } finally {
+      approvalFlow.close();
+    }
+
+    return result;
+  }
+
+  /**
    * Analyze with interactive approval flow
    * Call this for CLI use - prompts user after analysis
    */
