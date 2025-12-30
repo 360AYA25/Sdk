@@ -7,6 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.0] - 2025-12-29 🚀 **SDK V2 - Official Approach**
+
+> **Major Refactor**: Simplified architecture with official Claude Agent SDK patterns
+
+### ✨ New Architecture
+
+**Entry Point Simplified** (`src/index.ts`)
+- Clean command-based routing
+- Two primary flows: `analyze` and `fix`
+- Removed legacy orchestrator complexity
+
+**New Flows**
+- `src/analyze-flow.ts` - Workflow analysis with Claude Agent SDK
+- `src/fix-flow.ts` - Sequential fix flow for workflow issues
+- `src/sdk-config.ts` - Centralized configuration management
+
+**New Utilities** (`src/lib/`)
+- `external-test.ts` - Telegram bot webhook testing
+- `node-isolation.ts` - Single-node extraction for targeted fixes
+- `snapshot.ts` - Workflow state snapshots before changes
+- `todo.ts` - Task tracking utilities
+
+### 📦 New Commands
+
+```bash
+# Analyze workflow
+npm run analyze <workflowId>
+npm run analyze <workflowId> <projectPath>
+npm run dev:analyze <workflowId>
+
+# Fix workflow issues
+npm run fix <sessionId> <workflowId>
+npm run dev:fix <sessionId> <workflowId>
+```
+
+### ⚙️ Configuration Additions
+
+**.env.example**
+```bash
+# External Testing (Telegram)
+EXTERNAL_TEST_ENABLED=false
+EXTERNAL_TEST_WEBHOOK_URL=https://your-n8n.com/webhook/bot-test
+EXTERNAL_TEST_BOT_USERNAME=@your_bot
+EXTERNAL_TEST_TIMEOUT=20000
+
+# Supabase (optional)
+SUPABASE_ENABLED=false
+SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_KEY=your-key
+```
+
+### 📊 Stats
+
+- 10 files changed
+- +1476 lines, -158 lines
+- 4 new utility modules
+- 2 new flow modules
+
+### ✅ Validation
+
+- TypeScript: 0 errors
+- Build: Successful
+- Tested with FoodTracker workflow
+
+---
+
 ## [1.1.1] - 2025-12-28 🌙 **OVERNIGHT IMPROVEMENTS**
 
 > **Autonomous Agent System Optimization** - Phases 1-2 of 6-phase improvement roadmap
