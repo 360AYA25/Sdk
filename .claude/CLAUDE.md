@@ -1,6 +1,34 @@
 # ClaudeN8N SDK Project
 
-5-Agent n8n Workflow Builder on Claude Agent SDK. Migration from Task() workaround to native SDK.
+5-Agent n8n Workflow Builder on Claude Agent SDK.
+
+## Writing Rules (ОБЯЗАТЕЛЬНО!)
+
+**Language:**
+- ALL prompts, code comments, agent instructions → ENGLISH ONLY
+- User communication → Russian OK
+
+**Prompt Style:**
+- MAX 10 lines per agent prompt
+- NO philosophy, NO explanations
+- Format: `## TASK` → `## RULES` → `## OUTPUT`
+- Example:
+  ```
+  ## TASK
+  Find bugs in workflow.
+
+  ## RULES
+  - Call validate_workflow
+  - List errors with node names
+
+  ## OUTPUT
+  JSON array of issues
+  ```
+
+**Code Style:**
+- Comments: 1 line max
+- Function names: self-documenting
+- No redundant logging
 
 ## Architecture
 
@@ -312,6 +340,43 @@ INTERACTIVE_MODE=true npm start -- "Create workflow"
 // In Researcher/Builder via orchestrator
 const mcpResult = await mcp.callTool('get_node_essentials', { nodeType: 'n8n-nodes-base.telegram' });
 ```
+
+## Telegram Bot Testing (ОБЯЗАТЕЛЬНО!)
+
+**CRITICAL:** Когда нужно протестировать workflow с Telegram ботом — используй ТОЛЬКО Telethon API!
+
+**Полный гайд:** `/Users/sergey/Projects/n8n-docs/bot-testing-system/TESTING_GUIDE.md`
+
+### Краткий процесс:
+
+```bash
+# 1. Health check
+curl -s 'http://72.60.28.252:5001/health'
+
+# 2. Отправить сообщение боту
+curl -s -X POST 'http://72.60.28.252:5001/send_telegram' \
+  -H 'Content-Type: application/json' \
+  -d '{"chat_id":"@Multi_Bot0101_bot","message":"/day"}'
+# → Сохрани message_id!
+
+# 3. Дождаться ответа бота
+curl -s -X POST 'http://72.60.28.252:5001/wait_for_response' \
+  -H 'Content-Type: application/json' \
+  -d '{"chat_id":"@Multi_Bot0101_bot","after_message_id":12345,"timeout":25}'
+```
+
+### НИКОГДА:
+- Не симулируй ответы бота
+- Не пропускай wait_for_response
+- Не отправляй несколько сообщений параллельно
+
+### Bot IDs:
+- `@Multi_Bot0101_bot` (ID: 7845235205) — Food Tracker
+- User ID: 682776858 (seno1885)
+
+**Если sender_id = 682776858 → это твоё сообщение, бот ещё не ответил!**
+
+---
 
 ## Decisions Log
 
